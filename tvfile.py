@@ -1,13 +1,26 @@
 #!/usr/bin/env python
+#
+# TODO: Present the user with matching episode titles and have her select which
+# one is correct. Once selected, get the episode ID from the episode_names_ids
+# dictionary, and look up the episode details with episode_info(). Collect the
+# proper season number, episode number, and title. Then print it out to the
+# screen (in preparation for actually renaming the file).
+#
+# You'll have to use the same "Enter Choice: " logic again, so you should
+# probably but that inside a function.
+
 
 import sys
+import os
 import requests
 import json
 import argparse
 import json
 import string
+import textwrap
 
 from requests.exceptions import HTTPError
+
 
 # Modified by load_token() 
 TOKEN = ''
@@ -15,7 +28,8 @@ TOKEN = ''
 
 def create_parser():
     parser = argparse.ArgumentParser(description='Rename files according to tvdb')
-    parser.add_argument('--search', type=str, metavar='TV_SERIES', help='what to search for')
+    parser.add_argument('--search', required=True, type=str, metavar='TV_SERIES', help='what to search for')
+    parser.add_argument('files', nargs='+', type=str, metavar='EPISODES', help='episode files')
     return parser
 
 
@@ -64,9 +78,41 @@ def get_episodes(series_id):
     return response
 
 
+# These simple get/post functions are probably good candidates for decorators
+def episode_info(episode_id):
+    url = 'https://api.thetvdb.com/episodes/{}'.format(episode_id)
+    headers = {'Authorization': 'Bearer {}'.format(TOKEN)}
+    response = requests.get(url, headers=headers)
+    return response
+
+
+def list_choices(results_list):
+    """Print out numerical selectors next to a list of choices. Argument must be a list of strings."""
+    for position, item in enumerate(results_list):
+        print('[{selector}] {series_name}'.format(selector=position + 1, series_name=item))
+
+
+def select_choice(items):
+    """Take the user's numerical selection and use it to get the corresponding item from a list. Return a selection of any type."""
+    # Catch exceptions for input that isn't a number, or isn't in the list of
+    # results. Throw an exception if input isn't a positive number.
+    choice = input('Enter choice: ')
+    try:
+        chosen_integer = int(choice)
+        if chosen_integer <= 0:
+            raise ValueError
+        selection = items[chosen_integer - 1]
+    except (ValueError, IndexError):
+        print("Does not match any available choices")
+        sys.exit()
+    return selection
+
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
+
+    episode_files = [filename for filename in args.files if os.path.exists(filename)]
 
     if args.search is not None:
         load_token()
@@ -98,31 +144,17 @@ def main():
             print(e)
             sys.exit()
             
-        for position, item in enumerate(results_list):
-            print('[{selector}] {series_name}'.format(selector=position + 1, series_name=item['seriesName']))
+        # List choices for tv series selection
+        #for position, item in enumerate(results_list):
+        #    print('[{selector}] {series_name}'.format(selector=position + 1, series_name=item['seriesName']))
 
-        choice = input('Enter choice: ')
-
-        # Catch exceptions for input that isn't a number, or isn't in the list of
-        # results. Throw an exception if input isn't a positive number.
-        try:
-            chosen_integer = int(choice)
-            if chosen_integer <= 0:
-                raise ValueError
-        except (ValueError, IndexError):
-            print("Does not match any available choices")
-
-        series_data = results_list[chosen_integer - 1]
+        series_names = [series['seriesName'] for series in results_list]
+        list_choices(series_names)
+        series_data = select_choice(results_list)
         print('You have selected "{}"'.format(series_data['seriesName']))
 
         series_id = series_data['id']
         episode_list = get_episodes(series_id).json()['data']
-
-        # Collect ids and names in a list of tuples
-        #id_episode_names = list()
-        #for episode_data in episode_list:
-        #    id_episode_names.append(
-        #        (episode_data['id'], episode_data['episodeName'].lower()))
 
         # Used as argument to translate() to remove punctuation from titles
         table = str.maketrans('', '', string.punctuation)
@@ -132,48 +164,50 @@ def main():
         for episode_data in episode_list:
             episode_names_ids[episode_data['episodeName'].lower().translate(table)] = episode_data['id']
 
-        for k, v in episode_names_ids.items():
-            print(episode_names_ids)
+        # Print out all the episodes for your own reference
+        ep_names = '; '.join(ep_name for ep_name in episode_names_ids.keys())
+        #print(textwrap.fill(ep_names))
 
-        # Make user input lowercase then remove punctuation and split words into a list
-        text = input('Enter an episode title: ').lower()
-        title = text.translate(table)
-        words_in_title = title.split()
-        #print(words_in_title)
+        # Display the current filename
+        for filename in episode_files:
+            print('Episode File: {}'.format(filename))
 
-        # First try to match the whole search string to a title. 
-        phrase_matches = list()
-        for episode_name in episode_names_ids:
-            if title in episode_name:
-                phrase_matches.append(episode_name)
-        if phrase_matches:
-            print(phrase_matches)
-        # Perform a broad search by checking each word in the search string
-        # against each word in the title. This is helpful when the search
-        # string contains an error, e.g. spelling mistake. If you don't use a
-        # set(), this matches the same title multiple times, and returns
-        # duplicate titles equal to the number of words matched from the search
-        # string. 
-        else:
-            broad_matches = set()
-            for word in words_in_title:
-                for episode_name in episode_names_ids:
-                    if word in episode_name:
-                        broad_matches.add(episode_name)
-            print(broad_matches)
+            # Make user input lowercase then remove punctuation and split words into a list
+            text = input('Enter an episode title: ').lower()
+            title = text.translate(table)
+            words_in_title = title.split()
 
-        # This will of course only show exact matches
-        #if name in episode_names:
-        #    print("Wow we found your episode")
+            # First try to match the whole search string to a title. 
+            phrase_matches = list()
+            for ep_name in episode_names_ids:
+                if title in ep_name:
+                    phrase_matches.append(ep_name)
+            if phrase_matches:
+                list_choices(phrase_matches)
+                episode_name = select_choice(phrase_matches)
+                #print('Selected episode "{}"'.format(episode_name))
 
-        # Slightly better partial string search
-        #matches = list()
-        #for name in episode_names:
-        #    if name.find(title) >= 0:
-        #        matches.append(name)
+                # Now you need to get the episode info (name, season, ep
+                # number) from tvdb. Print that name out instead of the
+                # lowercase one.
 
-        #print('\n'.join(episode_names))
-        #print(json.dumps(episode_list.json(), indent=4, sort_keys=True))
+            # Perform a broad search by checking each word in the search string
+            # against each word in the title. This is helpful when the search
+            # string contains an error, e.g. spelling mistake. If you don't use a
+            # set(), this matches the same title multiple times, and returns
+            # duplicate titles equal to the number of words matched from the search
+            # string. 
+            else:
+                broad_matches = set()
+                for word in words_in_title:
+                    for episode_name in episode_names_ids:
+                        if word in episode_name:
+                            broad_matches.add(episode_name)
+                if broad_matches:
+                    list_choices(broad_matches)
+                    episode_name = select_choice(broad_matches)
+                else:
+                    print("Couldn't find a match")
 
 
 if __name__ == "__main__":
