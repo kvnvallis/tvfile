@@ -5,9 +5,6 @@
 # dictionary, and look up the episode details with episode_info(). Collect the
 # proper season number, episode number, and title. Then print it out to the
 # screen (in preparation for actually renaming the file).
-#
-# You'll have to use the same "Enter Choice: " logic again, so you should
-# probably but that inside a function.
 
 
 import sys
@@ -34,6 +31,7 @@ def create_parser():
 
 
 def get_access_token():
+    print("Getting new access token...")
     url = 'https://api.thetvdb.com/login'
     payload = {'apikey': 'FBOBJZQ4H8OEG8Q1'}
     response = requests.post(url, json=payload)
@@ -131,6 +129,7 @@ def main():
                     if response.status_code == requests.codes.ok:
                         save_token(response)
                         load_token()
+                        # You might want to get a refresh token here
                     continue
                 else:
                     print(e)
@@ -165,31 +164,30 @@ def main():
             episode_names_ids[episode_data['episodeName'].lower().translate(table)] = episode_data['id']
 
         # Print out all the episodes for your own reference
-        ep_names = '; '.join(ep_name for ep_name in episode_names_ids.keys())
+        #ep_names = '; '.join(ep_name for ep_name in episode_names_ids.keys())
         #print(textwrap.fill(ep_names))
 
         # Display the current filename
         for filename in episode_files:
             print('Episode File: {}'.format(filename))
 
-            # Make user input lowercase then remove punctuation and split words into a list
-            text = input('Enter an episode title: ').lower()
+            # Make user input lowercase then remove punctuation and split words into a list.
+            while True:
+                text = input('Enter an episode title: ').lower()
+                if not text:
+                    print("You left the episode title blank. Try again.")
+                else:
+                    break  # Stop prompting for input
+                
             title = text.translate(table)
             words_in_title = title.split()
 
             # First try to match the whole search string to a title. 
-            phrase_matches = list()
-            for ep_name in episode_names_ids:
-                if title in ep_name:
-                    phrase_matches.append(ep_name)
+            phrase_matches = [ep_name for ep_name in episode_names_ids if title in ep_name]
+
             if phrase_matches:
                 list_choices(phrase_matches)
-                episode_name = select_choice(phrase_matches)
-                #print('Selected episode "{}"'.format(episode_name))
-
-                # Now you need to get the episode info (name, season, ep
-                # number) from tvdb. Print that name out instead of the
-                # lowercase one.
+                chosen_episode = select_choice(phrase_matches)
 
             # Perform a broad search by checking each word in the search string
             # against each word in the title. This is helpful when the search
@@ -201,13 +199,39 @@ def main():
                 broad_matches = set()
                 for word in words_in_title:
                     for episode_name in episode_names_ids:
-                        if word in episode_name:
+                        if word in episode_name.split():
                             broad_matches.add(episode_name)
                 if broad_matches:
                     list_choices(broad_matches)
-                    episode_name = select_choice(broad_matches)
+                    chosen_episode = select_choice(broad_matches)
                 else:
                     print("Couldn't find a match")
+
+            # This is an obvious candidate for a function, but the previous
+            # code (for retrieving the tv series info) has an extra step where
+            # it renews the access token upon failure. Decorators might also be
+            # useful here.
+            tries = 3
+            for i in range(tries):
+                try:
+                    response = episode_info(episode_names_ids[chosen_episode])
+                    response.raise_for_status()
+                except HTTPError as e:
+                    if (i < tries - 1):
+                        print("Retrying...")
+                        continue
+                    else:
+                        print(e)
+                        sys.exit()
+                break
+
+            episode_data = response.json()['data']
+            print(json.dumps(episode_data, indent=4))
+            season = episode_data['airedSeason']
+            episode_number = episode_data['airedEpisodeNumber']
+            episode_name = episode_data['episodeName']
+            # Now just construct a filename out of those 3 things
+
 
 
 if __name__ == "__main__":
