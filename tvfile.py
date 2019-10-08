@@ -205,7 +205,10 @@ def main():
                     list_choices(broad_matches)
                     chosen_episode = select_choice(broad_matches)
                 else:
-                    print("Couldn't find a match")
+                    # TODO: Program the option to skip episode or try the
+                    # search again. Presently it just skips it.
+                    print("Couldn't find a match.")  
+                    continue  # Skip getting episode info
 
             # This is an obvious candidate for a function, but the previous
             # code (for retrieving the tv series info) has an extra step where
