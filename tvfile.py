@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 #
-# TODO: Present the user with matching episode titles and have her select which
-# one is correct. Once selected, get the episode ID from the episode_names_ids
-# dictionary, and look up the episode details with episode_info(). Collect the
-# proper season number, episode number, and title. Then print it out to the
-# screen (in preparation for actually renaming the file).
+# TODO: Add cmd line argument for multi-part episodes
 
 
 import sys
@@ -25,8 +21,9 @@ TOKEN = ''
 
 def create_parser():
     parser = argparse.ArgumentParser(description='Rename files according to tvdb')
-    parser.add_argument('--search', required=True, type=str, metavar='TV_SERIES', help='what to search for')
-    parser.add_argument('files', nargs='+', type=str, metavar='EPISODES', help='episode files')
+    parser.add_argument('--search', required=True, help='what to search for')
+    parser.add_argument('files', nargs='+', help='episode files')
+    parser.add_argument('--multiple-episodes', nargs='?', type=int, default=2, help='number of episodes per file, defaults to 2')
     return parser
 
 
@@ -171,7 +168,8 @@ def main():
         for filename in episode_files:
             print('Episode File: {}'.format(filename))
 
-            # Make user input lowercase then remove punctuation and split words into a list.
+            # TODO: for the multi-part episode argument, loop this section and
+            # let the user search twice or as many times as needed.
             while True:
                 text = input('Enter an episode title: ').lower()
                 if not text:
