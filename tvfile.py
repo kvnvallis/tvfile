@@ -179,6 +179,9 @@ def main():
                 else:
                     break  # Stop prompting for input
                 
+            # If you enter only punctuation, it will be stripped and the
+            # resulting blank string will return all episodes as a possible
+            # match.
             title = text.translate(table)
             words_in_title = title.split()
 
@@ -202,8 +205,11 @@ def main():
                         if word in episode_name.split():
                             broad_matches.add(episode_name)
                 if broad_matches:
-                    list_choices(broad_matches)
-                    chosen_episode = select_choice(broad_matches)
+                    # Convert back into a list to avoid exception `TypeError:
+                    # 'set' object is not subscriptable`
+                    broad_matches_list = list(broad_matches)
+                    list_choices(broad_matches_list)
+                    chosen_episode = select_choice(broad_matches_list)
                 else:
                     # TODO: Program the option to skip episode or try the
                     # search again. Presently it just skips it.
@@ -230,11 +236,24 @@ def main():
 
             episode_data = response.json()['data']
             print(json.dumps(episode_data, indent=4))
-            season = episode_data['airedSeason']
-            episode_number = episode_data['airedEpisodeNumber']
-            episode_name = episode_data['episodeName']
-            # Now just construct a filename out of those 3 things
 
+            series_name = series_data['seriesName']
+            season_number = str(episode_data['airedSeason'])
+            if len(season_number) < 2:
+                season_number = '0' + season_number
+            episode_number = str(episode_data['airedEpisodeNumber'])
+            if len(episode_number) < 2:
+                episode_number = '0' + episode_number
+            season_episode = 'S' + season_number + 'E' + episode_number
+            episode_name = episode_data['episodeName']
+
+            # Stylize and construct filename
+            series_name = series_name.replace(' ', '.')
+            episode_name = episode_name.replace(' ', '.')
+            filename_parts = [series_name, season_episode, episode_name]
+            new_filename = '.'.join(filename_parts)
+            file_extension = os.path.splitext(filename)[1]
+            print('Your new filename is "{}"'.format(new_filename + file_extension))
 
 
 if __name__ == "__main__":
