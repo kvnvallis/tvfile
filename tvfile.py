@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# TODO: Add cmd line argument for multi-part episodes
+# TODO: Construct filenames for multi-part episodes
 
 
 import sys
@@ -103,6 +103,37 @@ def select_choice(items):
     return selection
 
 
+def prompt_user(prompt):
+    while True:
+        #text = input('Enter an episode title: ').lower()
+        text = input(prompt).lower()
+        if not text:
+            print("You left the field blank. Try again.")
+        else:
+            return text
+            #break  # Stop prompting for input
+
+
+def phrase_search():
+    pass
+
+
+def keyword_search(title, episodes):
+    """Perform a broad search by checking each word in the search string against each word in the title. Take as arguments the episode title to search for and an iterable containing all episode titles."""
+    # This is helpful when the search string contains an error, e.g.
+    # spelling mistake. If you don't use a set(), this matches the same
+    # title multiple times, and returns duplicate titles equal to the
+    # number of words matched from the search string. 
+    words_in_title = title.split()
+    broad_matches = set()
+    for word in words_in_title:
+        for episode_name in episodes:
+            if word in episode_name.split():
+                broad_matches.add(episode_name)
+    broad_matches_list = list(broad_matches)
+    return broad_matches_list
+
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
@@ -170,18 +201,13 @@ def main():
 
             # TODO: for the multi-part episode argument, loop this section and
             # let the user search twice or as many times as needed.
-            while True:
-                text = input('Enter an episode title: ').lower()
-                if not text:
-                    print("You left the episode title blank. Try again.")
-                else:
-                    break  # Stop prompting for input
-                
+
+            text = prompt_user('Enter an episode title: ')
+                                
             # If you enter only punctuation, it will be stripped and the
             # resulting blank string will return all episodes as a possible
             # match.
             title = text.translate(table)
-            words_in_title = title.split()
 
             # First try to match the whole search string to a title. 
             phrase_matches = [ep_name for ep_name in episode_names_ids if title in ep_name]
@@ -189,30 +215,18 @@ def main():
             if phrase_matches:
                 list_choices(phrase_matches)
                 chosen_episode = select_choice(phrase_matches)
-
-            # Perform a broad search by checking each word in the search string
-            # against each word in the title. This is helpful when the search
-            # string contains an error, e.g. spelling mistake. If you don't use a
-            # set(), this matches the same title multiple times, and returns
-            # duplicate titles equal to the number of words matched from the search
-            # string. 
             else:
-                broad_matches = set()
-                for word in words_in_title:
-                    for episode_name in episode_names_ids:
-                        if word in episode_name.split():
-                            broad_matches.add(episode_name)
+                broad_matches = keyword_search(title, episode_names_ids)
                 if broad_matches:
-                    # Convert back into a list to avoid exception `TypeError:
-                    # 'set' object is not subscriptable`
-                    broad_matches_list = list(broad_matches)
-                    list_choices(broad_matches_list)
-                    chosen_episode = select_choice(broad_matches_list)
+                    list_choices(broad_matches)
+                    chosen_episode = select_choice(broad_matches)
                 else:
                     # TODO: Program the option to skip episode or try the
                     # search again. Presently it just skips it.
                     print("Couldn't find a match.")  
                     continue  # Skip getting episode info
+
+            ### END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
 
             # This is an obvious candidate for a function, but the previous
             # code (for retrieving the tv series info) has an extra step where
