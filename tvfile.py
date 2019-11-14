@@ -240,7 +240,7 @@ def main():
             # useful here.
 
             episode_data_list = list()
-            for ep in chosen_episode_list:
+            for chosen_episode in chosen_episode_list:
 
                 tries = 3
                 for i in range(tries):
