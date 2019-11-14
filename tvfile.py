@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# TODO: Construct filenames for multi-part episodes
+# TODO: Rename files in a new location, and also add a flag to rename them in-place.
 
 import sys
 import os
@@ -21,8 +21,11 @@ TOKEN = ''
 def create_parser():
     parser = argparse.ArgumentParser(description='Rename files according to tvdb')
     parser.add_argument('--search', required=True, help='what to search for')
-    parser.add_argument('files', nargs='+', help='episode files')
     parser.add_argument('--multiple-episodes', nargs='?', type=int, default=2, help='number of episodes per file, defaults to 2')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--symlinks', help='create renamed files as symlinks in a given directory')
+    group.add_argument('--in-place', action='store_true', help='rename files in-place')
+    parser.add_argument('files', nargs='+', help='episode files')
     return parser
 
 
@@ -260,26 +263,6 @@ def main():
                 episode_data_list.append(episode_data)
                 #print(json.dumps(episode_data, indent=4))
 
-            # You must collect multiple episode numbers and names
-
-            #series_name = series_data['seriesName']
-            #season_number = str(episode_data['airedSeason'])
-            #if len(season_number) < 2:
-            #    season_number = '0' + season_number
-            #episode_number = str(episode_data['airedEpisodeNumber'])
-            #if len(episode_number) < 2:
-            #    episode_number = '0' + episode_number
-            #season_episode = 'S' + season_number + 'E' + episode_number
-            #episode_name = episode_data['episodeName']
-
-            # Stylize and construct filename
-            #series_name = series_name.replace(' ', '.')
-            #episode_name = episode_name.replace(' ', '.')
-            #filename_parts = [series_name, season_episode, episode_name]
-            #new_filename = '.'.join(filename_parts)
-            #file_extension = os.path.splitext(filename)[1]
-            #print('Your new filename is "{}"'.format(new_filename + file_extension))
-
             series_name = series_data['seriesName'].replace(' ', '.')
             season_number = str(episode_data['airedSeason'])  # Just grab the last one in memory, for now
             if len(season_number) < 2:
@@ -301,6 +284,13 @@ def main():
             file_extension = os.path.splitext(filename)[1]
             print('Your new filename is "{}"'.format(new_filename + file_extension))
 
+            filepath = os.path.abspath(filename)
+            if args.symlinks and os.path.isdir(args.symlinks):
+                linkpath = os.path.abspath(args.symlinks)
+                os.symlink(filepath, os.path.join(linkpath, new_filename + file_extension)) 
+            elif args.in_place:
+                filedir = os.path.dirname(filepath)
+                os.rename(filepath, os.path.join(filedir, new_filename + file_extension)) 
 
 
 if __name__ == "__main__":
