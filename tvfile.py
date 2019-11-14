@@ -294,9 +294,9 @@ def main():
                     ep_number = '0' + ep_number
                 episode_numbers.append(ep_number)
 
-            season_episode_abbrev = 'S' + season_number + 'E' + 'E'.join(episode_numbers)
+            season_episode_abbrev = 'S' + season_number + 'E' + '-E'.join(episode_numbers)
 
-            filename_parts = [series_name, season_episode_abbrev, episode_names[0]]  # Only use the first episode name
+            filename_parts = [series_name, season_episode_abbrev, '-'.join(episode_names)]  # Only use the first episode name
             new_filename = '.'.join(filename_parts)
             file_extension = os.path.splitext(filename)[1]
             print('Your new filename is "{}"'.format(new_filename + file_extension))
