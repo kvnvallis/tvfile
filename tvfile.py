@@ -2,7 +2,6 @@
 #
 # TODO: Construct filenames for multi-part episodes
 
-
 import sys
 import os
 import requests
@@ -111,7 +110,6 @@ def prompt_user(prompt):
             print("You left the field blank. Try again.")
         else:
             return text
-            #break  # Stop prompting for input
 
 
 def phrase_search():
@@ -157,7 +155,7 @@ def main():
                     if response.status_code == requests.codes.ok:
                         save_token(response)
                         load_token()
-                        # You might want to get a refresh token here
+                        # You might want to get a refresh token here; They last longer
                     continue
                 else:
                     print(e)
@@ -199,32 +197,40 @@ def main():
         for filename in episode_files:
             print('Episode File: {}'.format(filename))
 
-            # TODO: for the multi-part episode argument, loop this section and
-            # let the user search twice or as many times as needed.
-
-            text = prompt_user('Enter an episode title: ')
-                                
-            # If you enter only punctuation, it will be stripped and the
-            # resulting blank string will return all episodes as a possible
-            # match.
-            title = text.translate(table)
-
-            # First try to match the whole search string to a title. 
-            phrase_matches = [ep_name for ep_name in episode_names_ids if title in ep_name]
-
-            if phrase_matches:
-                list_choices(phrase_matches)
-                chosen_episode = select_choice(phrase_matches)
+            if not args.multiple_episodes:
+                num_searches = 1
             else:
-                broad_matches = keyword_search(title, episode_names_ids)
-                if broad_matches:
-                    list_choices(broad_matches)
-                    chosen_episode = select_choice(broad_matches)
+                num_searches = args.multiple_episodes
+
+            chosen_episode_list = list()
+            search_count = 0
+            while (search_count < num_searches):
+                text = prompt_user('Enter an episode title: ')
+                                    
+                # If you enter only punctuation, it will be stripped and the
+                # resulting blank string will return all episodes as a possible
+                # match.
+                title = text.translate(table)
+
+                # First try to match the whole search string to a title. 
+                phrase_matches = [ep_name for ep_name in episode_names_ids if title in ep_name]
+
+                if phrase_matches:
+                    list_choices(phrase_matches)
+                    chosen_episode = select_choice(phrase_matches)
+                    chosen_episode_list.append(chosen_episode)
+                    search_count += 1
                 else:
-                    # TODO: Program the option to skip episode or try the
-                    # search again. Presently it just skips it.
-                    print("Couldn't find a match.")  
-                    continue  # Skip getting episode info
+                    broad_matches = keyword_search(title, episode_names_ids)
+                    if broad_matches:
+                        list_choices(broad_matches)
+                        chosen_episode = select_choice(broad_matches)
+                        chosen_episode_list.append(chosen_episode)
+                        search_count += 1
+                    else:
+                        # Try the search again
+                        print("Couldn't find a match.")  
+
 
             ### END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
 
@@ -232,40 +238,69 @@ def main():
             # code (for retrieving the tv series info) has an extra step where
             # it renews the access token upon failure. Decorators might also be
             # useful here.
-            tries = 3
-            for i in range(tries):
-                try:
-                    response = episode_info(episode_names_ids[chosen_episode])
-                    response.raise_for_status()
-                except HTTPError as e:
-                    if (i < tries - 1):
-                        print("Retrying...")
-                        continue
-                    else:
-                        print(e)
-                        sys.exit()
-                break
 
-            episode_data = response.json()['data']
-            print(json.dumps(episode_data, indent=4))
+            episode_data_list = list()
+            for ep in chosen_episode_list:
 
-            series_name = series_data['seriesName']
-            season_number = str(episode_data['airedSeason'])
-            if len(season_number) < 2:
-                season_number = '0' + season_number
-            episode_number = str(episode_data['airedEpisodeNumber'])
-            if len(episode_number) < 2:
-                episode_number = '0' + episode_number
-            season_episode = 'S' + season_number + 'E' + episode_number
-            episode_name = episode_data['episodeName']
+                tries = 3
+                for i in range(tries):
+                    try:
+                        response = episode_info(episode_names_ids[chosen_episode])
+                        response.raise_for_status()
+                    except HTTPError as e:
+                        if (i < tries - 1):
+                            print("Retrying...")
+                            continue
+                        else:
+                            print(e)
+                            sys.exit()
+                    break
+
+                episode_data = response.json()['data']
+                episode_data_list.append(episode_data)
+                #print(json.dumps(episode_data, indent=4))
+
+            # You must collect multiple episode numbers and names
+
+            #series_name = series_data['seriesName']
+            #season_number = str(episode_data['airedSeason'])
+            #if len(season_number) < 2:
+            #    season_number = '0' + season_number
+            #episode_number = str(episode_data['airedEpisodeNumber'])
+            #if len(episode_number) < 2:
+            #    episode_number = '0' + episode_number
+            #season_episode = 'S' + season_number + 'E' + episode_number
+            #episode_name = episode_data['episodeName']
 
             # Stylize and construct filename
-            series_name = series_name.replace(' ', '.')
-            episode_name = episode_name.replace(' ', '.')
-            filename_parts = [series_name, season_episode, episode_name]
+            #series_name = series_name.replace(' ', '.')
+            #episode_name = episode_name.replace(' ', '.')
+            #filename_parts = [series_name, season_episode, episode_name]
+            #new_filename = '.'.join(filename_parts)
+            #file_extension = os.path.splitext(filename)[1]
+            #print('Your new filename is "{}"'.format(new_filename + file_extension))
+
+            series_name = series_data['seriesName'].replace(' ', '.')
+            season_number = str(episode_data['airedSeason'])  # Just grab the last one in memory, for now
+            if len(season_number) < 2:
+                season_number = '0' + season_number
+
+            episode_names = [data['episodeName'].replace(' ', '.') for data in episode_data_list]
+
+            episode_numbers = list()
+            for data in episode_data_list:
+                ep_number = str(data['airedEpisodeNumber'])
+                if len(ep_number) < 2:
+                    ep_number = '0' + ep_number
+                episode_numbers.append(ep_number)
+
+            season_episode_abbrev = 'S' + season_number + 'E' + 'E'.join(episode_numbers)
+
+            filename_parts = [series_name, season_episode_abbrev, episode_names[0]]  # Only use the first episode name
             new_filename = '.'.join(filename_parts)
             file_extension = os.path.splitext(filename)[1]
             print('Your new filename is "{}"'.format(new_filename + file_extension))
+
 
 
 if __name__ == "__main__":
