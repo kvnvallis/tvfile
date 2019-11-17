@@ -1,6 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
-# TODO: Rename files in a new location, and also add a flag to rename them in-place.
+# TODO: 
+#
+# * Create different styles for filenames and make it easy to add new ones.
+# Handle shows that go by year instead of season (like mythbusters). Clean up
+# with autopep8 before making another commit.
+#
+# * My Ubuntu server's `python` binary is version 2.7. Should you change
+# `python` to `python3` at the top of the script?
+#
+# * If `token.txt` doesn't exist in the current directory, the script crashes.
+# Create token.txt at a reasonable location if it doesn't exist (the current
+# directory is the wrong place). 
 
 import sys
 import os
@@ -21,11 +32,11 @@ TOKEN = ''
 def create_parser():
     parser = argparse.ArgumentParser(description='Rename files according to tvdb')
     parser.add_argument('--search', required=True, help='what to search for')
-    parser.add_argument('--multiple-episodes', nargs='?', type=int, default=2, help='number of episodes per file, defaults to 2')
+    parser.add_argument('--multiple-episodes', action='store_const', const=2, help='Use when there are two episodes per file')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--symlinks', help='create renamed files as symlinks in a given directory')
     group.add_argument('--in-place', action='store_true', help='rename files in-place')
-    parser.add_argument('files', nargs='+', help='episode files')
+    parser.add_argument('files', nargs='+', help='the tv files to rename')
     return parser
 
 
