@@ -5,13 +5,7 @@
 # * Create different styles for filenames and make it easy to add new ones.
 # Handle shows that go by year instead of season (like mythbusters). Clean up
 # with autopep8 before making another commit.
-#
-# * My Ubuntu server's `python` binary is version 2.7. Should you change
-# `python` to `python3` at the top of the script?
-#
-# * If `token.txt` doesn't exist in the current directory, the script crashes.
-# Create token.txt at a reasonable location if it doesn't exist (the current
-# directory is the wrong place). 
+
 
 import sys
 import os
@@ -27,6 +21,7 @@ from requests.exceptions import HTTPError
 
 # Modified by load_token() 
 TOKEN = ''
+TOKEN_PATH = os.path.join(os.path.expanduser('~'), '.config', 'tvfile')
 
 
 def create_parser():
@@ -58,14 +53,19 @@ def get_refresh_token():
 
 
 def save_token(response):
-    with open('token.txt', 'w') as outfile:
+    with open(TOKEN_PATH, 'w') as outfile:
         outfile.write(response.json()['token'])
         
 
 def load_token():
     global TOKEN
-    with open('token.txt', 'r') as infile:
-        TOKEN = infile.read()
+    try:
+        with open(TOKEN_PATH, 'r') as infile:
+            TOKEN = infile.read()
+    except FileNotFoundError:
+        # Create the empty file
+        open(TOKEN_PATH, 'w').close()
+        
 
 
 # curl command to search for series
