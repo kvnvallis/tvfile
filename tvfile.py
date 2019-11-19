@@ -19,9 +19,10 @@ import textwrap
 from requests.exceptions import HTTPError
 
 
-# Modified by load_token() 
+# TOKEN is modified by load_token() 
 TOKEN = ''
-TOKEN_PATH = os.path.join(os.path.expanduser('~'), '.config', 'tvfile')
+CONFIG_DIR = os.path.join(os.path.expanduser('~'), '.config', 'tvfile')
+TOKEN_PATH = os.path.join(CONFIG_DIR, 'token.txt')
 
 
 def create_parser():
@@ -150,6 +151,9 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
 
+    if not os.path.isdir(CONFIG_DIR):
+        os.makedirs(CONFIG_DIR)
+
     episode_files = [filename for filename in args.files if os.path.exists(filename)]
 
     if args.search is not None:
@@ -183,10 +187,6 @@ def main():
             print(e)
             sys.exit()
             
-        # List choices for tv series selection
-        #for position, item in enumerate(results_list):
-        #    print('[{selector}] {series_name}'.format(selector=position + 1, series_name=item['seriesName']))
-
         series_names = [series['seriesName'] for series in results_list]
         list_choices(series_names)
         series_data = select_choice(results_list)
@@ -202,10 +202,6 @@ def main():
         episode_names_ids = dict()
         for episode_data in episode_list:
             episode_names_ids[episode_data['episodeName'].lower().translate(table)] = episode_data['id']
-
-        # Print out all the episodes for your own reference
-        #ep_names = '; '.join(ep_name for ep_name in episode_names_ids.keys())
-        #print(textwrap.fill(ep_names))
 
         # Display the current filename
         for filename in episode_files:
