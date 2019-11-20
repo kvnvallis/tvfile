@@ -16,7 +16,8 @@ import json
 import string
 import textwrap
 
-from requests.exceptions import HTTPError
+from glob import glob
+#from requests.exceptions import HTTPError
 
 
 # TOKEN is modified by load_token() 
@@ -27,8 +28,8 @@ TOKEN_PATH = os.path.join(CONFIG_DIR, 'token.txt')
 
 def create_parser():
     parser = argparse.ArgumentParser(description='Rename files according to tvdb')
-    parser.add_argument('--search', required=True, help='what to search for')
-    parser.add_argument('--multiple-episodes', action='store_const', const=2, help='Use when there are two episodes per file')
+    parser.add_argument('--search', required=True, help='name of the tv series')
+    parser.add_argument('--multiple-episodes', action='store_const', const=2, help='use this flag when there are two episodes per file')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--symlinks', help='create renamed files as symlinks in a given directory')
     group.add_argument('--in-place', action='store_true', help='rename files in-place')
@@ -152,6 +153,19 @@ def keyword_search(title, episodes):
     return broad_matches_list
 
 
+def expand_paths(files):
+    """Take a list of files where some might contain a '*' and expand the paths, and return a complete list of files"""
+    episode_files = list()
+    for path in files:
+        if '*' in path:
+            expanded_paths = glob(path)
+            for exp_path in expanded_paths:
+                episode_files.append(exp_path)
+        else:
+            episode_files.append(path)
+    return episode_files
+
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
@@ -159,7 +173,11 @@ def main():
     if not os.path.isdir(CONFIG_DIR):
         os.makedirs(CONFIG_DIR)
 
-    episode_files = [filename for filename in args.files if os.path.exists(filename)]
+    # Use glob for compatibility with windows shells
+    if os.name == 'nt':
+        episode_files = expand_paths(args.files)
+    else:
+        episode_files = [filename for filename in args.files if os.path.exists(filename)]
 
     if args.search is not None:
         load_token()
@@ -172,7 +190,7 @@ def main():
             try:
                 response = find_series(args.search)
                 response.raise_for_status()
-            except HTTPError as e:
+            except requests.exceptions.HTTPError as e:
                 if (i < tries - 1 and response.status_code == requests.codes.unauthorized):
                     response = get_access_token()
                     if response.status_code == requests.codes.ok:
@@ -257,7 +275,7 @@ def main():
                     try:
                         response = episode_info(episode_names_ids[remove_chars(chosen_episode, string.punctuation).lower()])
                         response.raise_for_status()
-                    except HTTPError as e:
+                    except requests.exceptions.HTTPError as e:
                         if (i < tries - 1):
                             print("Retrying...")
                             continue
