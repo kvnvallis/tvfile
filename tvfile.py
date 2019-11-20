@@ -68,7 +68,6 @@ def load_token():
         open(TOKEN_PATH, 'w').close()
         
 
-
 # curl command to search for series
 # curl --header 'Content-Type: application/json' --header "Authorization: Bearer [TOKEN]" --request GET https://api.thetvdb.com/search/series?name=mythbusters
 
@@ -127,6 +126,13 @@ def prompt_user(prompt):
             return text
 
 
+def remove_punct(words):
+    """Return a given string with all punctuation removed"""
+    table = str.maketrans('', '', string.punctuation)
+    words.translate(table)
+    return words
+
+
 def phrase_search():
     pass
 
@@ -140,9 +146,9 @@ def keyword_search(title, episodes):
     words_in_title = title.split()
     broad_matches = set()
     for word in words_in_title:
-        for episode_name in episodes:
-            if word in episode_name.split():
-                broad_matches.add(episode_name)
+        for episode_title in episodes:
+            if word in remove_punct(episode_title).lower().split():
+                broad_matches.add(episode_title)
     broad_matches_list = list(broad_matches)
     return broad_matches_list
 
@@ -181,27 +187,24 @@ def main():
             break  # Don't retry when there is no exception
 
         try:
-            results_list = response.json()['data']
+            series_list = response.json()['data']
         except KeyError as e:
             print("Did not receive a valid search result")
             print(e)
             sys.exit()
             
-        series_names = [series['seriesName'] for series in results_list]
-        list_choices(series_names)
-        series_data = select_choice(results_list)
+        series_titles = [series['seriesName'] for series in series_list]
+        list_choices(series_titles)
+        series_data = select_choice(series_list)
         print('You have selected "{}"'.format(series_data['seriesName']))
-
         series_id = series_data['id']
         episode_list = get_episodes(series_id).json()['data']
-
-        # Used as argument to translate() to remove punctuation from titles
-        table = str.maketrans('', '', string.punctuation)
+        episode_titles = [episode['episodeName'] for episode in episode_list]
 
         # Make a dictionary of (sanitized) episode titles to episode IDs
         episode_names_ids = dict()
         for episode_data in episode_list:
-            episode_names_ids[episode_data['episodeName'].lower().translate(table)] = episode_data['id']
+            episode_names_ids[remove_punct(episode_data['episodeName']).lower()] = episode_data['id']
 
         # Display the current filename
         for filename in episode_files:
@@ -220,10 +223,10 @@ def main():
                 # If you enter only punctuation, it will be stripped and the
                 # resulting blank string will return all episodes as a possible
                 # match.
-                title = text.translate(table)
+                title_search = remove_punct(text).lower()
 
                 # First try to match the whole search string to a title. 
-                phrase_matches = [ep_name for ep_name in episode_names_ids if title in ep_name]
+                phrase_matches = [ep_title for ep_title in episode_titles if title_search in remove_punct(ep_title).lower()]
 
                 if phrase_matches:
                     list_choices(phrase_matches)
@@ -231,7 +234,7 @@ def main():
                     chosen_episode_list.append(chosen_episode)
                     search_count += 1
                 else:
-                    broad_matches = keyword_search(title, episode_names_ids)
+                    broad_matches = keyword_search(title_search, episode_titles)
                     if broad_matches:
                         list_choices(broad_matches)
                         chosen_episode = select_choice(broad_matches)
@@ -255,7 +258,7 @@ def main():
                 tries = 3
                 for i in range(tries):
                     try:
-                        response = episode_info(episode_names_ids[chosen_episode])
+                        response = episode_info(episode_names_ids[remove_punct(chosen_episode).lower()])
                         response.raise_for_status()
                     except HTTPError as e:
                         if (i < tries - 1):
