@@ -126,11 +126,10 @@ def prompt_user(prompt):
             return text
 
 
-def remove_punct(words):
-    """Return a given string with all punctuation removed"""
-    table = str.maketrans('', '', string.punctuation)
-    words.translate(table)
-    return words
+def remove_chars(words, characters):
+    """Return a given string with given characters removed. Expects both arguments to be strings."""
+    table = str.maketrans('', '', characters)
+    return words.translate(table)
 
 
 def phrase_search():
@@ -147,7 +146,7 @@ def keyword_search(title, episodes):
     broad_matches = set()
     for word in words_in_title:
         for episode_title in episodes:
-            if word in remove_punct(episode_title).lower().split():
+            if word in remove_chars(episode_title, string.punctuation).lower().split():
                 broad_matches.add(episode_title)
     broad_matches_list = list(broad_matches)
     return broad_matches_list
@@ -193,20 +192,18 @@ def main():
             print(e)
             sys.exit()
             
-        series_titles = [series['seriesName'] for series in series_list]
+        series_titles = tuple([series['seriesName'] for series in series_list])
         list_choices(series_titles)
         series_data = select_choice(series_list)
         print('You have selected "{}"'.format(series_data['seriesName']))
         series_id = series_data['id']
         episode_list = get_episodes(series_id).json()['data']
-        episode_titles = [episode['episodeName'] for episode in episode_list]
+        episode_titles = tuple([episode['episodeName'] for episode in episode_list])
 
-        # Make a dictionary of (sanitized) episode titles to episode IDs
         episode_names_ids = dict()
         for episode_data in episode_list:
-            episode_names_ids[remove_punct(episode_data['episodeName']).lower()] = episode_data['id']
+            episode_names_ids[remove_chars(episode_data['episodeName'], string.punctuation).lower()] = episode_data['id']
 
-        # Display the current filename
         for filename in episode_files:
             print('Episode File: {}'.format(filename))
 
@@ -223,10 +220,10 @@ def main():
                 # If you enter only punctuation, it will be stripped and the
                 # resulting blank string will return all episodes as a possible
                 # match.
-                title_search = remove_punct(text).lower()
+                title_search = remove_chars(text, string.punctuation).lower()
 
                 # First try to match the whole search string to a title. 
-                phrase_matches = [ep_title for ep_title in episode_titles if title_search in remove_punct(ep_title).lower()]
+                phrase_matches = [ep_title for ep_title in episode_titles if title_search in remove_chars(ep_title, string.punctuation).lower()]
 
                 if phrase_matches:
                     list_choices(phrase_matches)
@@ -258,7 +255,7 @@ def main():
                 tries = 3
                 for i in range(tries):
                     try:
-                        response = episode_info(episode_names_ids[remove_punct(chosen_episode).lower()])
+                        response = episode_info(episode_names_ids[remove_chars(chosen_episode, string.punctuation).lower()])
                         response.raise_for_status()
                     except HTTPError as e:
                         if (i < tries - 1):
@@ -290,7 +287,8 @@ def main():
             season_episode_abbrev = 'S' + season_number + 'E' + '-E'.join(episode_numbers)
 
             filename_parts = [series_name, season_episode_abbrev, '-'.join(episode_names)]  # Only use the first episode name
-            new_filename = '.'.join(filename_parts)
+            illegal_chars = '<>:"/\|?*'
+            new_filename = remove_chars('.'.join(filename_parts), illegal_chars)
             file_extension = os.path.splitext(filename)[1]
             print('Your new filename is "{}"'.format(new_filename + file_extension))
 
