@@ -5,6 +5,7 @@
 # * Clean up with autopep8 before making another commit.
 # * Create different styles for filenames and make it easy to add new ones.
 #   for instance).
+# * Allow keyboard interrupt without raising an exception
 
 
 import sys
@@ -358,4 +359,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('\n')
+        sys.exit(0)
+
