@@ -2,13 +2,9 @@
 #
 # TODO: 
 #
-# * If 100 results from api, fetch next page
 # * Clean up with autopep8 before making another commit.
 # * Create different styles for filenames and make it easy to add new ones.
-# * Handle shows that go by year instead of season (like mythbusters). 
-# * Don't exit the app if you enter an invalid numerical choice (like a string
 #   for instance).
-# 
 
 
 import sys
@@ -129,21 +125,20 @@ def select_choice(items):
     """Take the user's numerical selection and use it to get the corresponding item from a list. Return a selection of any type."""
     # Catch exceptions for input that isn't a number, or isn't in the list of
     # results. Throw an exception if input isn't a positive number.
-    choice = input('Enter choice: ')
-    try:
-        chosen_integer = int(choice)
-        if chosen_integer <= 0:
-            raise ValueError
-        selection = items[chosen_integer - 1]
-    except (ValueError, IndexError):
-        print("Does not match any available choices")
-        sys.exit()
-    return selection
+    while True:
+        choice = input('Enter choice: ')
+        try:
+            chosen_integer = int(choice)
+            if chosen_integer <= 0:
+                raise ValueError
+            selection = items[chosen_integer - 1]
+            return selection
+        except (ValueError, IndexError):
+            print("Does not match any available choices")
 
 
 def prompt_user(prompt):
     while True:
-        #text = input('Enter an episode title: ').lower()
         text = input(prompt).lower()
         if not text:
             print("You left the field blank. Try again.")
