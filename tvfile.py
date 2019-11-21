@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# TODO: 
+# TODO:
 #
 # * Clean up with autopep8 before making another commit.
 # * Create different styles for filenames and make it easy to add new ones.
@@ -20,19 +20,24 @@ from glob import glob
 #from requests.exceptions import HTTPError
 
 
-# TOKEN is modified by load_token() 
+# TOKEN is modified by load_token()
 TOKEN = ''
 CONFIG_DIR = os.path.join(os.path.expanduser('~'), '.config', 'tvfile')
 TOKEN_PATH = os.path.join(CONFIG_DIR, 'token.txt')
 
 
 def create_parser():
-    parser = argparse.ArgumentParser(description='Rename files according to tvdb')
-    parser.add_argument('--search', required=True, help='name of the tv series')
-    parser.add_argument('--multiple-episodes', action='store_const', const=2, help='use this flag when there are two episodes per file')
+    parser = argparse.ArgumentParser(
+        description='Rename files according to tvdb')
+    parser.add_argument('--search', required=True,
+                        help='name of the tv series')
+    parser.add_argument('--multiple-episodes', action='store_const',
+                        const=2, help='use this flag when there are two episodes per file')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--symlinks', help='create renamed files as symlinks in a given directory')
-    group.add_argument('--in-place', action='store_true', help='rename files in-place')
+    group.add_argument(
+        '--symlinks', help='create renamed files as symlinks in a given directory')
+    group.add_argument('--in-place', action='store_true',
+                       help='rename files in-place')
     parser.add_argument('files', nargs='+', help='the tv files to rename')
     return parser
 
@@ -57,7 +62,7 @@ def get_refresh_token():
 def save_token(response):
     with open(TOKEN_PATH, 'w') as outfile:
         outfile.write(response.json()['token'])
-        
+
 
 def load_token():
     global TOKEN
@@ -67,7 +72,7 @@ def load_token():
     except FileNotFoundError:
         # Create the empty file
         open(TOKEN_PATH, 'w').close()
-        
+
 
 # curl command to search for series
 # curl --header 'Content-Type: application/json' --header "Authorization: Bearer [TOKEN]" --request GET https://api.thetvdb.com/search/series?name=mythbusters
@@ -104,7 +109,6 @@ def get_all_episodes(series_id):
         else:
             all_episodes = all_episodes + episodes['data']
             return all_episodes
-        
 
 
 # These simple get/post functions are probably good candidates for decorators
@@ -118,7 +122,8 @@ def episode_info(episode_id):
 def list_choices(results_list):
     """Print out numerical selectors next to a list of choices. Argument must be a list of strings."""
     for position, item in enumerate(results_list):
-        print('[{selector}] {series_name}'.format(selector=position + 1, series_name=item))
+        print('[{selector}] {series_name}'.format(
+            selector=position + 1, series_name=item))
 
 
 def select_choice(items):
@@ -161,7 +166,7 @@ def keyword_search(title, episodes):
     # This is helpful when the search string contains an error, e.g.
     # spelling mistake. If you don't use a set(), this matches the same
     # title multiple times, and returns duplicate titles equal to the
-    # number of words matched from the search string. 
+    # number of words matched from the search string.
     words_in_title = title.split()
     broad_matches = set()
     for word in words_in_title:
@@ -196,14 +201,15 @@ def main():
     if os.name == 'nt':
         episode_files = expand_paths(args.files)
     else:
-        episode_files = [filename for filename in args.files if os.path.exists(filename)]
+        episode_files = [
+            filename for filename in args.files if os.path.exists(filename)]
 
     if args.search is not None:
         load_token()
 
 # When a search receives a fail status, raise an exception and try to get a new
 # access token. If that succeeds, save the token and perform the search again.
-# Otherwise, try to get a new token again. 
+# Otherwise, try to get a new token again.
         tries = 3
         for i in range(tries):
             try:
@@ -228,18 +234,20 @@ def main():
             print("Did not receive a valid search result")
             print(e)
             sys.exit()
-            
+
         series_titles = tuple([series['seriesName'] for series in series_list])
         list_choices(series_titles)
         series_data = select_choice(series_list)
         print('You have selected "{}"'.format(series_data['seriesName']))
         series_id = series_data['id']
         episode_list = get_all_episodes(series_id)
-        episode_titles = tuple([episode['episodeName'] for episode in episode_list])
+        episode_titles = tuple([episode['episodeName']
+                                for episode in episode_list])
 
         episode_names_ids = dict()
         for episode_data in episode_list:
-            episode_names_ids[remove_chars(episode_data['episodeName'], string.punctuation).lower()] = episode_data['id']
+            episode_names_ids[remove_chars(
+                episode_data['episodeName'], string.punctuation).lower()] = episode_data['id']
 
         for filename in episode_files:
             print('Episode File: {}'.format(filename))
@@ -253,14 +261,15 @@ def main():
             search_count = 0
             while (search_count < num_searches):
                 text = prompt_user('Enter an episode title: ')
-                                    
+
                 # If you enter only punctuation, it will be stripped and the
                 # resulting blank string will return all episodes as a possible
                 # match.
                 title_search = remove_chars(text, string.punctuation).lower()
 
-                # First try to match the whole search string to a title. 
-                phrase_matches = [ep_title for ep_title in episode_titles if title_search in remove_chars(ep_title, string.punctuation).lower()]
+                # First try to match the whole search string to a title.
+                phrase_matches = [ep_title for ep_title in episode_titles if title_search in remove_chars(
+                    ep_title, string.punctuation).lower()]
 
                 if phrase_matches:
                     list_choices(phrase_matches)
@@ -268,7 +277,8 @@ def main():
                     chosen_episode_list.append(chosen_episode)
                     search_count += 1
                 else:
-                    broad_matches = keyword_search(title_search, episode_titles)
+                    broad_matches = keyword_search(
+                        title_search, episode_titles)
                     if broad_matches:
                         list_choices(broad_matches)
                         chosen_episode = select_choice(broad_matches)
@@ -276,10 +286,9 @@ def main():
                         search_count += 1
                     else:
                         # Try the search again
-                        print("Couldn't find a match.")  
+                        print("Couldn't find a match.")
 
-
-            ### END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
+            # END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
 
             # This is an obvious candidate for a function, but the previous
             # code (for retrieving the tv series info) has an extra step where
@@ -292,7 +301,8 @@ def main():
                 tries = 3
                 for i in range(tries):
                     try:
-                        response = episode_info(episode_names_ids[remove_chars(chosen_episode, string.punctuation).lower()])
+                        response = episode_info(episode_names_ids[remove_chars(
+                            chosen_episode, string.punctuation).lower()])
                         response.raise_for_status()
                     except requests.exceptions.HTTPError as e:
                         if (i < tries - 1):
@@ -308,11 +318,13 @@ def main():
                 #print(json.dumps(episode_data, indent=4))
 
             series_name = series_data['seriesName'].replace(' ', '.')
-            season_number = str(episode_data['airedSeason'])  # Just grab the last one in memory, for now
+            # Just grab the last one in memory, for now
+            season_number = str(episode_data['airedSeason'])
             if len(season_number) < 2:
                 season_number = '0' + season_number
 
-            episode_names = [data['episodeName'].replace(' ', '.') for data in episode_data_list]
+            episode_names = [data['episodeName'].replace(
+                ' ', '.') for data in episode_data_list]
 
             episode_numbers = list()
             for data in episode_data_list:
@@ -321,21 +333,28 @@ def main():
                     ep_number = '0' + ep_number
                 episode_numbers.append(ep_number)
 
-            season_episode_abbrev = 'S' + season_number + 'E' + '-E'.join(episode_numbers)
+            season_episode_abbrev = 'S' + season_number + \
+                'E' + '-E'.join(episode_numbers)
 
-            filename_parts = [series_name, season_episode_abbrev, '-'.join(episode_names)]  # Only use the first episode name
+            # Only use the first episode name
+            filename_parts = [series_name,
+                              season_episode_abbrev, '-'.join(episode_names)]
             illegal_chars = '<>:"/\|?*'
-            new_filename = remove_chars('.'.join(filename_parts), illegal_chars)
+            new_filename = remove_chars(
+                '.'.join(filename_parts), illegal_chars)
             file_extension = os.path.splitext(filename)[1]
-            print('Your new filename is "{}"'.format(new_filename + file_extension))
+            print('Your new filename is "{}"'.format(
+                new_filename + file_extension))
 
             filepath = os.path.abspath(filename)
             if args.symlinks and os.path.isdir(args.symlinks):
                 linkpath = os.path.abspath(args.symlinks)
-                os.symlink(filepath, os.path.join(linkpath, new_filename + file_extension)) 
+                os.symlink(filepath, os.path.join(
+                    linkpath, new_filename + file_extension))
             elif args.in_place:
                 filedir = os.path.dirname(filepath)
-                os.rename(filepath, os.path.join(filedir, new_filename + file_extension)) 
+                os.rename(filepath, os.path.join(
+                    filedir, new_filename + file_extension))
 
 
 if __name__ == "__main__":
