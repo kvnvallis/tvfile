@@ -2,9 +2,13 @@
 #
 # TODO: 
 #
+# * If 100 results from api, fetch next page
+# * Clean up with autopep8 before making another commit.
 # * Create different styles for filenames and make it easy to add new ones.
-# Handle shows that go by year instead of season (like mythbusters). Clean up
-# with autopep8 before making another commit.
+# * Handle shows that go by year instead of season (like mythbusters). 
+# * Don't exit the app if you enter an invalid numerical choice (like a string
+#   for instance).
+# 
 
 
 import sys
@@ -80,11 +84,31 @@ def find_series(search):
     return response
 
 
-def get_episodes(series_id):
+def get_episodes(series_id, page=1):
+    """Take integer or string values for the series id and the page of results, then return the response"""
+    # There is a max of 100 results per page
     url = 'https://api.thetvdb.com/series/{}/episodes'.format(series_id)
+    payload = {'page': '{}'.format(page)}
     headers = {'Authorization': 'Bearer {}'.format(TOKEN)}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, params=payload, headers=headers)
     return response
+
+
+def get_all_episodes(series_id):
+    """Return all episodes in a list of json objects"""
+    # When on page 2
+    # {'first': 1, 'last': 4, 'next': 3, 'prev': 1}
+    page = 1
+    all_episodes = list()
+    while True:
+        episodes = get_episodes(series_id, page).json()
+        if episodes['links']['next'] is not None:
+            all_episodes = all_episodes + episodes['data']
+            page = episodes['links']['next']
+        else:
+            all_episodes = all_episodes + episodes['data']
+            return all_episodes
+        
 
 
 # These simple get/post functions are probably good candidates for decorators
@@ -173,7 +197,7 @@ def main():
     if not os.path.isdir(CONFIG_DIR):
         os.makedirs(CONFIG_DIR)
 
-    # Use glob for compatibility with windows shells
+    # Use glob to expand file paths for compatibility with windows shells
     if os.name == 'nt':
         episode_files = expand_paths(args.files)
     else:
@@ -215,7 +239,7 @@ def main():
         series_data = select_choice(series_list)
         print('You have selected "{}"'.format(series_data['seriesName']))
         series_id = series_data['id']
-        episode_list = get_episodes(series_id).json()['data']
+        episode_list = get_all_episodes(series_id)
         episode_titles = tuple([episode['episodeName'] for episode in episode_list])
 
         episode_names_ids = dict()
