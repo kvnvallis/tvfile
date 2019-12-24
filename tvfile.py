@@ -2,10 +2,8 @@
 #
 # TODO:
 #
-# * Clean up with autopep8 before making another commit.
 # * Create different styles for filenames and make it easy to add new ones.
-#   for instance).
-# * Allow keyboard interrupt without raising an exception
+# * Write tests and learn how to run them
 
 
 import sys
@@ -16,6 +14,7 @@ import argparse
 import json
 import string
 import textwrap
+import configparser
 
 from glob import glob
 #from requests.exceptions import HTTPError
@@ -191,6 +190,33 @@ def expand_paths(files):
     return episode_files
 
 
+def build_filename(series_name, season_number, episode_names, episode_numbers):
+    """Accept names with words separated by spaces, and numbers as strings not integers. Return a filename without a file extension."""
+    if len(season_number) < 2:
+        season_number = '0' + season_number
+
+    for index, ep_number in enumerate(episode_numbers):
+        if len(ep_number) < 2:
+            ep_number = '0' + ep_number
+            episode_numbers[index] = ep_number
+
+    season_episode_abbrev = 'S' + season_number + \
+        'E' + '-E'.join(episode_numbers)
+    series_name = series_name.replace(' ', '.')
+
+    for index, ep_name in enumerate(episode_names):
+        new_name = ep_name.replace(' ', '.')
+        episode_names[index] = new_name
+
+    filename_parts = [series_name,
+                      season_episode_abbrev, '-'.join(episode_names)]
+
+    illegal_chars = '<>:"/\|?*'
+    new_filename = remove_chars(
+        '.'.join(filename_parts), illegal_chars)
+    return new_filename
+
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
@@ -318,31 +344,13 @@ def main():
                 episode_data_list.append(episode_data)
                 #print(json.dumps(episode_data, indent=4))
 
-            series_name = series_data['seriesName'].replace(' ', '.')
+            series_name = series_data['seriesName']
             # Just grab the last one in memory, for now
             season_number = str(episode_data['airedSeason'])
-            if len(season_number) < 2:
-                season_number = '0' + season_number
+            episode_names = [data['episodeName'] for data in episode_data_list]
+            episode_numbers = [str(data['airedEpisodeNumber']) for data in episode_data_list]
 
-            episode_names = [data['episodeName'].replace(
-                ' ', '.') for data in episode_data_list]
-
-            episode_numbers = list()
-            for data in episode_data_list:
-                ep_number = str(data['airedEpisodeNumber'])
-                if len(ep_number) < 2:
-                    ep_number = '0' + ep_number
-                episode_numbers.append(ep_number)
-
-            season_episode_abbrev = 'S' + season_number + \
-                'E' + '-E'.join(episode_numbers)
-
-            # Only use the first episode name
-            filename_parts = [series_name,
-                              season_episode_abbrev, '-'.join(episode_names)]
-            illegal_chars = '<>:"/\|?*'
-            new_filename = remove_chars(
-                '.'.join(filename_parts), illegal_chars)
+            new_filename = build_filename(series_name, season_number, episode_names, episode_numbers)
             file_extension = os.path.splitext(filename)[1]
             print('Your new filename is "{}"'.format(
                 new_filename + file_extension))
