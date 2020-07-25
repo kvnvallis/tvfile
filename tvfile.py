@@ -14,7 +14,7 @@ import argparse
 import json
 import string
 import textwrap
-import configparser
+#import configparser
 
 from glob import glob
 #from requests.exceptions import HTTPError
