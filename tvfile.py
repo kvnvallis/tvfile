@@ -29,16 +29,16 @@ TOKEN_PATH = os.path.join(CONFIG_DIR, 'token.txt')
 def create_parser():
     parser = argparse.ArgumentParser(
         description='Rename files according to tvdb')
-    parser.add_argument('--search', required=True,
-                        help='name of the tv series')
-    parser.add_argument('--multiple-episodes', action='store_const',
-                        const=2, help='use this flag when there are two episodes per file')
+    parser.add_argument('-s', '--search', required=True, metavar='SERIES_NAME',
+                        help='Search term to find the name of the tv series')
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        '--symlinks', help='create renamed files as symlinks in a given directory')
-    group.add_argument('--in-place', action='store_true',
-                       help='rename files in-place')
-    parser.add_argument('files', nargs='+', help='the tv files to rename')
+        '-l', '--symlinks', metavar='DEST_DIR', help='Create renamed files as symlinks in a given directory')
+    group.add_argument('-r', '--rename', action='store_true',
+                       help='Rename original files in place')
+    parser.add_argument('-m', '--multiple-episodes', action='store_const',
+                        const=2, help='Use this flag when there are two episodes per file')
+    parser.add_argument('files', nargs='+', metavar='EPISODE_FILES', help='The tv episode files to rename, intended to be used with shell expansion, e.g. *.mkv')
     return parser
 
 
