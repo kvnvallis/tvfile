@@ -130,23 +130,25 @@ def select_choice(items):
     """Take the user's numerical selection and use it to get the corresponding item from a list. Return a selection of any type."""
     # Catch exceptions for input that isn't a number, or isn't in the list of
     # results. Throw an exception if input isn't a positive number.
-    while True:
-        choice = input('Enter choice: ')
-        try:
-            chosen_integer = int(choice)
-            if chosen_integer <= 0:
-                raise ValueError
-            selection = items[chosen_integer - 1]
-            return selection
-        except (ValueError, IndexError):
-            print("Does not match any available choices")
+    print('>>> Select a number or enter 0 for none')
+    choice = prompt_user('Enter choice: ')
+    try:
+        chosen_integer = int(choice)
+        if chosen_integer < 0:
+            raise ValueError
+        elif chosen_integer == 0:
+            return None
+        selection = items[chosen_integer - 1]
+        return selection
+    except (ValueError, IndexError):
+        print("Does not match any available choices")
 
 
 def prompt_user(prompt):
     while True:
         text = input(prompt).lower()
         if not text:
-            print("You left the field blank. Try again.")
+            continue
         else:
             return text
 
@@ -265,6 +267,11 @@ def main():
         series_titles = tuple([series['seriesName'] for series in series_list])
         list_choices(series_titles)
         series_data = select_choice(series_list)
+
+        if series_data is None:
+            print("No series selected, run the script again")
+            sys.exit()
+
         print('You have selected "{}"'.format(series_data['seriesName']))
         series_id = series_data['id']
         episode_list = get_all_episodes(series_id)
@@ -301,6 +308,8 @@ def main():
                 if phrase_matches:
                     list_choices(phrase_matches)
                     chosen_episode = select_choice(phrase_matches)
+                    if chosen_episode is None:
+                        continue
                     chosen_episode_list.append(chosen_episode)
                     search_count += 1
                 else:
@@ -309,6 +318,8 @@ def main():
                     if broad_matches:
                         list_choices(broad_matches)
                         chosen_episode = select_choice(broad_matches)
+                        if chosen_episode is None:
+                            continue
                         chosen_episode_list.append(chosen_episode)
                         search_count += 1
                     else:
