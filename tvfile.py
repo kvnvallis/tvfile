@@ -165,13 +165,8 @@ def remove_chars(words, characters):
 #    pass
 
 
-def search_titles(episode_titles):
+def search_titles(episode_titles, num_searches):
     """Accept a list of titles as an argument. Prompt the user for a search string and try to find an exact match, then search each word in the phrase. List the results and let the user choose the correct title. Return one or more chosen titles as a tuple."""
-    if not args.multiple_episodes:
-        num_searches = 1
-    else:
-        num_searches = args.multiple_episodes
-
     chosen_episode_list = list()
     search_count = 0
 
@@ -331,7 +326,7 @@ def main():
             episode_names_ids[remove_chars(
                 episode_data['episodeName'], string.punctuation).lower()] = episode_data['id']
 
-        # WIP: Collect season and episode numbers too, so that we have the
+        # Collect season and episode numbers too, so that we have the
         # option to search by number instead of title
 
         episode_nums_ids = dict()
@@ -339,12 +334,32 @@ def main():
             episode_nums_ids[str(episode_data['airedSeason']) + 'x' + str(episode_data['airedEpisodeNumber'])] = episode_data['id']
         #print(episode_nums_ids)
 
-        # END WIP
+        if args.episode_numbers:
+            print(">>> Episode numbers must be given in the format SEASONxEPISODE e.g. 3x6 for season 3 episode 6")
+
+        if not args.multiple_episodes:
+            num_searches = 1
+        else:
+            num_searches = args.multiple_episodes
 
         for filename in episode_files:
             print('Episode File: {}'.format(filename))
 
-            chosen_episode_list = search_titles(episode_titles)
+            if args.episode_numbers:
+                given_episode_numbers = list()
+                entry_count = 0
+                while True:
+                    entry_count += 1
+                    # TODO: Make sure to validate input
+                    episode_number = prompt_user('Enter episode number: ')
+                    given_episode_numbers.append(episode_number)
+                    if entry_count >= num_searches:
+                        break
+
+                episode_ids = [episode_nums_ids[ep_num] for ep_num in given_episode_numbers]
+            else:
+                chosen_episodes = [remove_chars(ep_name, string.punctuation).lower() for ep_name in search_titles(episode_titles, num_searches)]
+                episode_ids = [episode_names_ids[ep_name] for ep_name in chosen_episodes]
 
             # END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
 
@@ -354,13 +369,14 @@ def main():
             # useful here.
 
             episode_data_list = list()
-            for chosen_episode in chosen_episode_list:
+            for ep_id in episode_ids:
 
                 tries = 3
                 for i in range(tries):
                     try:
-                        response = episode_info(episode_names_ids[remove_chars(
-                            chosen_episode, string.punctuation).lower()])
+                        #response = episode_info(episode_names_ids[remove_chars(
+                        #    chosen_episode, string.punctuation).lower()])
+                        response = episode_info(ep_id)
                         response.raise_for_status()
                     except requests.exceptions.HTTPError as e:
                         if (i < tries - 1):
