@@ -2,6 +2,7 @@
 #
 # TODO:
 #
+# * Option to search by episode number, not title
 # * Create different styles for filenames and make it easy to add new ones.
 # * Write tests and learn how to run them
 
@@ -28,7 +29,7 @@ TOKEN_PATH = os.path.join(CONFIG_DIR, 'token.txt')
 
 def create_parser():
     parser = argparse.ArgumentParser(
-        description='Rename files according to tvdb')
+        description='Rename files with correct season and episode numbers according to the TheTVDB.com')
     parser.add_argument('-s', '--search', required=True, metavar='SERIES_NAME',
                         help='Search term to find the name of the tv series')
     group = parser.add_mutually_exclusive_group()
@@ -39,6 +40,7 @@ def create_parser():
     parser.add_argument('-m', '--multiple-episodes', action='store_const',
                         const=2, help='Use this flag when there are two episodes per file')
     parser.add_argument('files', nargs='+', metavar='EPISODE_FILES', help='The tv episode files to rename, intended to be used with shell expansion, e.g. *.mkv')
+    parser.add_argument('--episode-numbers', action='store_true', help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
     return parser
 
 
@@ -159,8 +161,53 @@ def remove_chars(words, characters):
     return words.translate(table)
 
 
-def phrase_search():
-    pass
+#def phrase_search():
+#    pass
+
+
+def search_titles(episode_titles):
+    """Accept a list of titles as an argument. Prompt the user for a search string and try to find an exact match, then search each word in the phrase. List the results and let the user choose the correct title. Return one or more chosen titles as a tuple."""
+    if not args.multiple_episodes:
+        num_searches = 1
+    else:
+        num_searches = args.multiple_episodes
+
+    chosen_episode_list = list()
+    search_count = 0
+
+    while (search_count < num_searches):
+        text = prompt_user('Enter an episode title: ')
+
+        # If you enter only punctuation, it will be stripped and the
+        # resulting blank string will return all episodes as a possible
+        # match.
+        title_search = remove_chars(text, string.punctuation).lower()
+
+        phrase_matches = [ep_title for ep_title in episode_titles if title_search in remove_chars(
+            ep_title, string.punctuation).lower()]
+
+        if phrase_matches:
+            list_choices(phrase_matches)
+            chosen_episode = select_choice(phrase_matches)
+            if chosen_episode is None:
+                continue
+            chosen_episode_list.append(chosen_episode)
+            search_count += 1
+        else:
+            broad_matches = keyword_search(
+                title_search, episode_titles)
+            if broad_matches:
+                list_choices(broad_matches)
+                chosen_episode = select_choice(broad_matches)
+                if chosen_episode is None:
+                    continue
+                chosen_episode_list.append(chosen_episode)
+                search_count += 1
+            else:
+                # Try the search again
+                print("Couldn't find a match.")
+
+    return tuple(chosen_episode_list)
 
 
 def keyword_search(title, episodes):
@@ -221,6 +268,7 @@ def build_filename(series_name, season_number, episode_names, episode_numbers):
 
 def main():
     parser = create_parser()
+    global args
     args = parser.parse_args()
 
     if not os.path.isdir(CONFIG_DIR):
@@ -277,54 +325,26 @@ def main():
         episode_list = get_all_episodes(series_id)
         episode_titles = tuple([episode['episodeName']
                                 for episode in episode_list])
-
+                                
         episode_names_ids = dict()
         for episode_data in episode_list:
             episode_names_ids[remove_chars(
                 episode_data['episodeName'], string.punctuation).lower()] = episode_data['id']
 
+        # WIP: Collect season and episode numbers too, so that we have the
+        # option to search by number instead of title
+
+        episode_nums_ids = dict()
+        for episode_data in episode_list:
+            episode_nums_ids[str(episode_data['airedSeason']) + 'x' + str(episode_data['airedEpisodeNumber'])] = episode_data['id']
+        #print(episode_nums_ids)
+
+        # END WIP
+
         for filename in episode_files:
             print('Episode File: {}'.format(filename))
 
-            if not args.multiple_episodes:
-                num_searches = 1
-            else:
-                num_searches = args.multiple_episodes
-
-            chosen_episode_list = list()
-            search_count = 0
-            while (search_count < num_searches):
-                text = prompt_user('Enter an episode title: ')
-
-                # If you enter only punctuation, it will be stripped and the
-                # resulting blank string will return all episodes as a possible
-                # match.
-                title_search = remove_chars(text, string.punctuation).lower()
-
-                # First try to match the whole search string to a title.
-                phrase_matches = [ep_title for ep_title in episode_titles if title_search in remove_chars(
-                    ep_title, string.punctuation).lower()]
-
-                if phrase_matches:
-                    list_choices(phrase_matches)
-                    chosen_episode = select_choice(phrase_matches)
-                    if chosen_episode is None:
-                        continue
-                    chosen_episode_list.append(chosen_episode)
-                    search_count += 1
-                else:
-                    broad_matches = keyword_search(
-                        title_search, episode_titles)
-                    if broad_matches:
-                        list_choices(broad_matches)
-                        chosen_episode = select_choice(broad_matches)
-                        if chosen_episode is None:
-                            continue
-                        chosen_episode_list.append(chosen_episode)
-                        search_count += 1
-                    else:
-                        # Try the search again
-                        print("Couldn't find a match.")
+            chosen_episode_list = search_titles(episode_titles)
 
             # END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
 
@@ -371,7 +391,7 @@ def main():
                 linkpath = os.path.abspath(args.symlinks)
                 os.symlink(filepath, os.path.join(
                     linkpath, new_filename + file_extension))
-            elif args.in_place:
+            elif args.rename:
                 filedir = os.path.dirname(filepath)
                 os.rename(filepath, os.path.join(
                     filedir, new_filename + file_extension))
