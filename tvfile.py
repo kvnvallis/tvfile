@@ -15,6 +15,7 @@ import argparse
 import json
 import string
 import textwrap
+import re
 #import configparser
 
 from glob import glob
@@ -349,10 +350,23 @@ def main():
                 given_episode_numbers = list()
                 entry_count = 0
                 while True:
-                    entry_count += 1
                     # TODO: Make sure to validate input
                     episode_number = prompt_user('Enter episode number: ')
-                    given_episode_numbers.append(episode_number)
+                    if re.compile("^\d{1,2}x\d{1,2}$").match(episode_number):
+                        # Remove any leading zeroes
+                        season_and_episode = [num.lstrip('0') for num in re.split('x', episode_number)]
+                        episode_number = 'x'.join(season_and_episode) 
+                        try:
+                            episode_nums_ids[episode_number]
+                        except KeyError:
+                            print("Episode does not exist")
+                            continue
+                        given_episode_numbers.append(episode_number)
+                        entry_count += 1
+                    else:
+                        print("Invalid entry, try again")
+                        continue
+
                     if entry_count >= num_searches:
                         break
 
@@ -399,7 +413,7 @@ def main():
 
             new_filename = build_filename(series_name, season_number, episode_names, episode_numbers)
             file_extension = os.path.splitext(filename)[1]
-            print('Your new filename is "{}"'.format(
+            print('>>> Your new filename is "{}"'.format(
                 new_filename + file_extension))
 
             filepath = os.path.abspath(filename)
