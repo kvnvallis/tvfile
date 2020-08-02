@@ -41,7 +41,7 @@ def create_parser():
     parser.add_argument('-m', '--multiple-episodes', action='store_const',
                         const=2, help='Use this flag when there are two episodes per file')
     parser.add_argument('files', nargs='+', metavar='EPISODE_FILES', help='The tv episode files to rename, intended to be used with shell expansion, e.g. *.mkv')
-    parser.add_argument('--episode-numbers', action='store_true', help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
+    parser.add_argument('-n', '--episode-numbers', action='store_true', help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
     return parser
 
 
@@ -333,7 +333,6 @@ def main():
         episode_nums_ids = dict()
         for episode_data in episode_list:
             episode_nums_ids[str(episode_data['airedSeason']) + 'x' + str(episode_data['airedEpisodeNumber'])] = episode_data['id']
-        #print(episode_nums_ids)
 
         if args.episode_numbers:
             print(">>> Episode numbers must be given in the format SEASONxEPISODE e.g. 3x6 for season 3 episode 6")
@@ -388,8 +387,6 @@ def main():
                 tries = 3
                 for i in range(tries):
                     try:
-                        #response = episode_info(episode_names_ids[remove_chars(
-                        #    chosen_episode, string.punctuation).lower()])
                         response = episode_info(ep_id)
                         response.raise_for_status()
                     except requests.exceptions.HTTPError as e:
@@ -403,7 +400,6 @@ def main():
 
                 episode_data = response.json()['data']
                 episode_data_list.append(episode_data)
-                #print(json.dumps(episode_data, indent=4))
 
             series_name = series_data['seriesName']
             # Just grab the last one in memory, for now
