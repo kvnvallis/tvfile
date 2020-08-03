@@ -42,8 +42,10 @@ def create_parser():
                        help='Rename original files in place')
     parser.add_argument('-m', '--multiple-episodes', action='store_const',
                         const=2, help='Use this flag when there are two episodes per file')
-    parser.add_argument('files', nargs='+', metavar='EPISODE_FILES', help='The tv episode files to rename, intended to be used with shell expansion, e.g. *.mkv')
-    parser.add_argument('-n', '--episode-numbers', action='store_true', help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
+    parser.add_argument('files', nargs='+', metavar='EPISODE_FILES',
+                        help='The tv episode files to rename, intended to be used with shell expansion, e.g. *.mkv')
+    parser.add_argument('-n', '--episode-numbers', action='store_true',
+                        help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
     return parser
 
 
@@ -319,7 +321,7 @@ def main():
         episode_list = get_all_episodes(series_id)
         episode_titles = tuple([episode['episodeName']
                                 for episode in episode_list])
-                                
+
         episode_names_ids = dict()
         for episode_data in episode_list:
             episode_names_ids[remove_chars(
@@ -330,10 +332,12 @@ def main():
 
         episode_nums_ids = dict()
         for episode_data in episode_list:
-            episode_nums_ids[str(episode_data['airedSeason']) + 'x' + str(episode_data['airedEpisodeNumber'])] = episode_data['id']
+            episode_nums_ids[str(episode_data['airedSeason']) + 'x' +
+                             str(episode_data['airedEpisodeNumber'])] = episode_data['id']
 
         if args.episode_numbers:
-            print(">>> Episode numbers must be given in the format SEASONxEPISODE e.g. 3x6 for season 3 episode 6")
+            print(
+                ">>> Episode numbers must be given in the format SEASONxEPISODE e.g. 3x6 for season 3 episode 6")
 
         if not args.multiple_episodes:
             num_searches = 1
@@ -350,8 +354,9 @@ def main():
                     episode_number = prompt_user('Enter episode number: ')
                     if re.compile("^\d{1,2}x\d{1,2}$").match(episode_number):
                         # Remove any leading zeroes
-                        season_and_episode = [num.lstrip('0') for num in re.split('x', episode_number)]
-                        episode_number = 'x'.join(season_and_episode) 
+                        season_and_episode = [num.lstrip(
+                            '0') for num in re.split('x', episode_number)]
+                        episode_number = 'x'.join(season_and_episode)
                         try:
                             episode_nums_ids[episode_number]
                         except KeyError:
@@ -366,10 +371,13 @@ def main():
                     if entry_count >= num_searches:
                         break
 
-                episode_ids = [episode_nums_ids[ep_num] for ep_num in given_episode_numbers]
+                episode_ids = [episode_nums_ids[ep_num]
+                               for ep_num in given_episode_numbers]
             else:
-                chosen_episodes = [remove_chars(ep_name, string.punctuation).lower() for ep_name in search_titles(episode_titles, num_searches)]
-                episode_ids = [episode_names_ids[ep_name] for ep_name in chosen_episodes]
+                chosen_episodes = [remove_chars(ep_name, string.punctuation).lower(
+                ) for ep_name in search_titles(episode_titles, num_searches)]
+                episode_ids = [episode_names_ids[ep_name]
+                               for ep_name in chosen_episodes]
 
             # END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
 
@@ -397,9 +405,11 @@ def main():
             # Just grab the last one in memory, for now
             season_number = str(episode_data['airedSeason'])
             episode_names = [data['episodeName'] for data in episode_data_list]
-            episode_numbers = [str(data['airedEpisodeNumber']) for data in episode_data_list]
+            episode_numbers = [str(data['airedEpisodeNumber'])
+                               for data in episode_data_list]
 
-            new_filename = build_filename(series_name, season_number, episode_names, episode_numbers)
+            new_filename = build_filename(
+                series_name, season_number, episode_names, episode_numbers)
             file_extension = os.path.splitext(filename)[1]
             print('>>> Your new filename is "{}"'.format(
                 new_filename + file_extension))
@@ -421,4 +431,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print('\n')
         sys.exit(0)
-
