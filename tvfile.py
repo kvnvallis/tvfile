@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 #
+# TV information is provided by TheTVDB.com, but we are not endorsed or
+# certified by TheTVDB.com or its affiliates.
+#
+
 # TODO:
 #
-# * Option to search by episode number, not title
-# * Create different styles for filenames and make it easy to add new ones.
-# * Write tests and learn how to run them
+# * Try to guess episode titles or numbers based on filename
+# * Create different styles for filenames and make it easy to add new ones
 
 
 import sys
@@ -19,7 +22,6 @@ import re
 #import configparser
 
 from glob import glob
-#from requests.exceptions import HTTPError
 
 
 # TOKEN is modified by load_token()
@@ -80,6 +82,7 @@ def load_token():
 # curl command to search for series
 # curl --header 'Content-Type: application/json' --header "Authorization: Bearer [TOKEN]" --request GET https://api.thetvdb.com/search/series?name=mythbusters
 
+
 def find_series(search):
     url = 'https://api.thetvdb.com/search/series'
     payload = {'name': search}
@@ -114,7 +117,6 @@ def get_all_episodes(series_id):
             return all_episodes
 
 
-# These simple get/post functions are probably good candidates for decorators
 def episode_info(episode_id):
     url = 'https://api.thetvdb.com/episodes/{}'.format(episode_id)
     headers = {'Authorization': 'Bearer {}'.format(TOKEN)}
@@ -160,10 +162,6 @@ def remove_chars(words, characters):
     """Return a given string with given characters removed. Expects both arguments to be strings."""
     table = str.maketrans('', '', characters)
     return words.translate(table)
-
-
-#def phrase_search():
-#    pass
 
 
 def search_titles(episode_titles, num_searches):
@@ -299,7 +297,7 @@ def main():
                 else:
                     print(e)
                     sys.exit()
-            break  # Don't retry when there is no exception
+            break  # If it doesn't throw an exception then move on, there is no need to retry
 
         try:
             series_list = response.json()['data']
@@ -349,7 +347,6 @@ def main():
                 given_episode_numbers = list()
                 entry_count = 0
                 while True:
-                    # TODO: Make sure to validate input
                     episode_number = prompt_user('Enter episode number: ')
                     if re.compile("^\d{1,2}x\d{1,2}$").match(episode_number):
                         # Remove any leading zeroes
@@ -375,11 +372,6 @@ def main():
                 episode_ids = [episode_names_ids[ep_name] for ep_name in chosen_episodes]
 
             # END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
-
-            # This is an obvious candidate for a function, but the previous
-            # code (for retrieving the tv series info) has an extra step where
-            # it renews the access token upon failure. Decorators might also be
-            # useful here.
 
             episode_data_list = list()
             for ep_id in episode_ids:
