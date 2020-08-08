@@ -16,7 +16,7 @@ __tvfile v0.1-alpha:__
 Copy tvfile to a location in your PATH.
 
     sudo cp '~/Downloads/tvfile' /usr/local/bin/
-    sudo chown user.user /usr/local/bin/tvfile
+    sudo chown $USER /usr/local/bin/tvfile
     sudo chmod u+x /usr/local/bin/tvfile
 
 
@@ -53,7 +53,6 @@ Create symlinks in your media library for episodes in your downloads folder.
 Rename files in-place without creating links.
 
     tvfile -s 'adventure time' -r '/media/library/adventure time/season 5/*.mkv' 
-
 Rename files that contain 2 episodes per file.
 
     tvfile -s 'flapjack' -r -m '/media/library/flapjack/*.mkv'
@@ -61,3 +60,10 @@ Rename files that contain 2 episodes per file.
 Rename files by providing the episode number instead of searching for the episode title.
 
     tvfile -s 'samurai champloo' -r -n '/media/library/samurai champloo/*.mkv'
+
+
+## Tips
+
+* Hit ctrl-c to stop the script at any time
+* You can enter search strings for episode names instead of the full title
+* A token for TheTVDB.com API is stored in your user folder at `~/.config/tvfile/`
