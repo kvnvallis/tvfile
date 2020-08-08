@@ -46,6 +46,7 @@ def create_parser():
                         help='The tv episode files to rename, intended to be used with shell expansion, e.g. *.mkv')
     parser.add_argument('-n', '--episode-numbers', action='store_true',
                         help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
+    parser.add_argument('-j', '--junk', help='Help auto-detection of episode titles by providing parts of the filename which can be ignored')
     return parser
 
 
@@ -275,7 +276,7 @@ def main():
         episode_files = expand_paths(args.files)
     else:
         episode_files = [
-            filename for filename in args.files if os.path.exists(filename)]
+            filepath for filepath in args.files if os.path.exists(filepath)]
 
     if args.search is not None:
         load_token()
@@ -344,7 +345,9 @@ def main():
         else:
             num_searches = args.multiple_episodes
 
-        for filename in episode_files:
+        for filepath in episode_files:
+            filepath = os.path.abspath(filepath)
+            filename = os.path.basename(filepath)
             print('Episode File: {}'.format(filename))
 
             if args.episode_numbers:
@@ -374,8 +377,10 @@ def main():
                 episode_ids = [episode_nums_ids[ep_num]
                                for ep_num in given_episode_numbers]
             else:
+                # TODO: Guess episode title
+                results = search_titles(episode_titles, num_searches)
                 chosen_episodes = [remove_chars(ep_name, string.punctuation).lower(
-                ) for ep_name in search_titles(episode_titles, num_searches)]
+                ) for ep_name in results]
                 episode_ids = [episode_names_ids[ep_name]
                                for ep_name in chosen_episodes]
 
@@ -414,7 +419,6 @@ def main():
             print('>>> Your new filename is "{}"'.format(
                 new_filename + file_extension))
 
-            filepath = os.path.abspath(filename)
             if args.symlinks and os.path.isdir(args.symlinks):
                 linkpath = os.path.abspath(args.symlinks)
                 os.symlink(filepath, os.path.join(
