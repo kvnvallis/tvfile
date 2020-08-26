@@ -288,7 +288,7 @@ def main():
 
         # Decode token and check how many hours until expiration
         hrs_until_exp = (jwt.decode(TOKEN, verify=False)['exp'] - time.time()) / 60 / 60
-        if hrs_until_exp < 24:
+        if hrs_until_exp < 144:
             response = request_refresh_token()
             save_token(response)
             load_token()
