@@ -19,6 +19,8 @@ import json
 import string
 import textwrap
 import re
+import time
+import jwt
 #import configparser
 
 from glob import glob
@@ -50,16 +52,18 @@ def create_parser():
     return parser
 
 
-def get_access_token():
+def request_access_token(apikey='FBOBJZQ4H8OEG8Q1'):
     print("Getting new access token...")
     url = 'https://api.thetvdb.com/login'
-    payload = {'apikey': 'FBOBJZQ4H8OEG8Q1'}
+    payload = {'apikey': apikey}
     response = requests.post(url, json=payload)
     return response
 
 
-def get_refresh_token():
+def request_refresh_token():
     """Try to get a refresh token, then return a response no matter what"""
+    # Refresh tokens last one full week
+    print("Getting new refresh token...")
     url = 'https://api.thetvdb.com/refresh_token'
     headers = {'Authorization': 'Bearer {}'.format(TOKEN)}
     print("Refreshing auth token")
@@ -279,11 +283,20 @@ def main():
             filepath for filepath in args.files if os.path.exists(filepath)]
 
     if args.search is not None:
-        load_token()
 
-# When a search receives a fail status, raise an exception and try to get a new
-# access token. If that succeeds, save the token and perform the search again.
-# Otherwise, try to get a new token again.
+        load_token() # Creates file if it does not exist
+
+        # Decode token and check how many hours until expiration
+        hrs_until_exp = (jwt.decode(TOKEN, verify=False)['exp'] - time.time()) / 60 / 60
+        if hrs_until_exp < 24:
+            response = request_refresh_token()
+            save_token(response)
+            load_token()
+
+    # When a search receives a fail status, raise an exception and try to get a new
+    # access token. If that succeeds, save the token and perform the search again.
+    # Otherwise, try to get a new token again.
+
         tries = 3
         for i in range(tries):
             try:
@@ -291,11 +304,15 @@ def main():
                 response.raise_for_status()
             except requests.exceptions.HTTPError as e:
                 if (i < tries - 1 and response.status_code == requests.codes.unauthorized):
-                    response = get_access_token()
+                    response = request_access_token()
                     if response.status_code == requests.codes.ok:
                         save_token(response)
                         load_token()
-                        # You might want to get a refresh token here; They last longer
+                        # Get a refresh token that lasts 168 hours instead of 24
+                        response = request_refresh_token()
+                        if response.status_code == requests.codes.ok:
+                            save_token()
+                            load_token()
                     continue
                 else:
                     print(e)
