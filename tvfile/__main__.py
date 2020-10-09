@@ -206,44 +206,21 @@ def remove_chars(words, characters):
     return words.translate(table)
 
 
-def search_titles(episode_titles, num_searches):
-    """Accept a list of titles as an argument. Prompt the user for a search string and try to find an exact match, then search each word in the phrase. List the results and let the user choose the correct title. Return one or more chosen titles as a tuple."""
-    chosen_episode_list = list()
-    search_count = 0
+def search_titles(episode_titles, search_string):
+    phrase_matches = [ep_title for ep_title in episode_titles if search_string in remove_chars(
+        ep_title, string.punctuation).lower()]
 
-    while (search_count < num_searches):
-        text = prompt_user('Enter an episode title: ')
-
-        # If you enter only punctuation, it will be stripped and the
-        # resulting blank string will return all episodes as a possible
-        # match.
-        title_search = remove_chars(text, string.punctuation).lower()
-
-        phrase_matches = [ep_title for ep_title in episode_titles if title_search in remove_chars(
-            ep_title, string.punctuation).lower()]
-
-        if phrase_matches:
-            list_choices(phrase_matches)
-            chosen_episode = select_choice(phrase_matches)
-            if chosen_episode is None:
-                continue
-            chosen_episode_list.append(chosen_episode)
-            search_count += 1
-        else:
-            broad_matches = keyword_search(
-                title_search, episode_titles)
-            if broad_matches:
-                list_choices(broad_matches)
-                chosen_episode = select_choice(broad_matches)
-                if chosen_episode is None:
-                    continue
-                chosen_episode_list.append(chosen_episode)
-                search_count += 1
-            else:
-                # Try the search again
-                print("Couldn't find a match.")
-
-    return tuple(chosen_episode_list)
+    if phrase_matches:
+        list_choices(phrase_matches)
+        chosen_episode = select_choice(phrase_matches)
+        return chosen_episode
+    else:
+        broad_matches = keyword_search(
+            search_string, episode_titles)
+        if broad_matches:
+            list_choices(broad_matches)
+            chosen_episode = select_choice(broad_matches)
+            return chosen_episode
 
 
 def keyword_search(title, episodes):
@@ -404,9 +381,22 @@ def main():
                            for ep_num in given_episode_numbers]
         else:
             # TODO: Guess episode title
-            results = search_titles(episode_titles, num_searches)
+            chosen_episode_list = list()
+            search_count = 0
+
+            while (search_count < num_searches):
+                text = prompt_user('Enter an episode title: ')
+                title_search = remove_chars(text, string.punctuation).lower()
+                chosen_episode = search_titles(episode_titles, title_search)
+
+                if chosen_episode is not None:
+                    chosen_episode_list.append(chosen_episode)
+                    search_count += 1
+                else:
+                    print("Ignoring selection, try again")
+
             chosen_episodes = [remove_chars(ep_name, string.punctuation).lower(
-            ) for ep_name in results]
+            ) for ep_name in chosen_episode_list]
             episode_ids = [episode_names_ids[ep_name]
                            for ep_name in chosen_episodes]
 
