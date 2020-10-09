@@ -53,6 +53,22 @@ def create_parser():
     return parser
 
 
+def try_query(query_func, *query_args, limit=3):
+    tries = 0
+    # for tries in range(limit):
+    while tries < limit:
+        try:
+            response = query_func(*query_args)
+            response.raise_for_status()
+            return response
+        except HTTPError as e:
+            if response.status_code == requests.codes.unauthorized:
+                get_token()
+            tries += 1
+    print("Tried query {} times with no good response: {}".format(tries, e))
+    sys.exit()
+
+
 def get_token():
     response = request_access_token()
     if response.status_code == requests.codes.ok:
@@ -310,23 +326,7 @@ def main():
     #    save_token(response)
     #    load_token()
 
-# When a search receives a fail status, raise an exception and try to get a new
-# access token. If that succeeds, save the token and perform the search again.
-# Otherwise, try to get a new token again.
-
-    tries = 3
-    for i in range(tries):
-        try:
-            response = find_series(args.search)
-            response.raise_for_status()
-        except HTTPError as e:
-            if (i < tries - 1 and response.status_code == requests.codes.unauthorized):
-                get_token()
-                continue
-            else:
-                print("Received an unexpected error when attempting to query theTVDB: {}".format(e))
-                sys.exit()
-        break  # If it doesn't throw an exception then move on, there is no need to retry
+    response = try_query(find_series, args.search)
 
     try:
         series_list = response.json()['data']
@@ -415,20 +415,7 @@ def main():
         episode_data_list = list()
         for ep_id in episode_ids:
 
-            tries = 3
-            for i in range(tries):
-                try:
-                    response = episode_info(ep_id)
-                    response.raise_for_status()
-                except requests.exceptions.HTTPError as e:
-                    if (i < tries - 1):
-                        print("Retrying...")
-                        continue
-                    else:
-                        print(e)
-                        sys.exit()
-                break
-
+            response = try_query(episode_info, ep_id)
             episode_data = response.json()['data']
             episode_data_list.append(episode_data)
 
