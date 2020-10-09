@@ -24,6 +24,7 @@ import jwt
 #import configparser
 
 from glob import glob
+from requests.exceptions import HTTPError
 
 
 # TOKEN is modified by load_token()
@@ -52,6 +53,25 @@ def create_parser():
     return parser
 
 
+def get_token():
+    response = request_access_token()
+    if response.status_code == requests.codes.ok:
+        save_token(response)
+        load_token()
+    else:
+        print("Something went wrong with getting the access token")
+        return
+
+    response = request_refresh_token()
+    if response.status_code == requests.codes.ok:
+        save_token(response)
+        load_token()
+        print("Access token is good for the next 168 hours")
+    else:
+        print("Access token is good for the next 24 hours")
+        return
+
+
 def request_access_token(apikey='FBOBJZQ4H8OEG8Q1'):
     print("Getting new access token...")
     url = 'https://api.thetvdb.com/login'
@@ -66,7 +86,6 @@ def request_refresh_token():
     print("Getting new refresh token...")
     url = 'https://api.thetvdb.com/refresh_token'
     headers = {'Authorization': 'Bearer {}'.format(TOKEN)}
-    print("Refreshing auth token")
     response = requests.get(url, headers=headers)
     return response
 
@@ -282,168 +301,178 @@ def main():
         episode_files = [
             filepath for filepath in args.files if os.path.exists(filepath)]
 
-    if args.search is not None:
+    load_token() # Creates file if it does not exist
 
-        load_token() # Creates file if it does not exist
+    # Decode token and check how many hours until expiration
+    #hrs_until_exp = (jwt.decode(TOKEN, verify=False)['exp'] - time.time()) / 60 / 60
+    #if hrs_until_exp < 144 and hrs_until_exp > 0:
+    #    response = request_refresh_token()
+    #    save_token(response)
+    #    load_token()
 
-        # Decode token and check how many hours until expiration
-        hrs_until_exp = (jwt.decode(TOKEN, verify=False)['exp'] - time.time()) / 60 / 60
-        if hrs_until_exp < 144:
-            response = request_refresh_token()
-            save_token(response)
-            load_token()
+# When a search receives a fail status, raise an exception and try to get a new
+# access token. If that succeeds, save the token and perform the search again.
+# Otherwise, try to get a new token again.
 
-    # When a search receives a fail status, raise an exception and try to get a new
-    # access token. If that succeeds, save the token and perform the search again.
-    # Otherwise, try to get a new token again.
-
-        tries = 3
-        for i in range(tries):
-            try:
-                response = find_series(args.search)
-                response.raise_for_status()
-            except requests.exceptions.HTTPError as e:
-                if (i < tries - 1 and response.status_code == requests.codes.unauthorized):
-                    response = request_access_token()
-                    if response.status_code == requests.codes.ok:
-                        save_token(response)
-                        load_token()
-                        # Get a refresh token that lasts 168 hours instead of 24
-                        response = request_refresh_token()
-                        if response.status_code == requests.codes.ok:
-                            save_token()
-                            load_token()
-                    continue
-                else:
-                    print(e)
-                    sys.exit()
-            break  # If it doesn't throw an exception then move on, there is no need to retry
-
+    tries = 3
+    for i in range(tries):
         try:
-            series_list = response.json()['data']
-        except KeyError as e:
-            print("Did not receive a valid search result")
-            print(e)
-            sys.exit()
+            response = find_series(args.search)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            if (i < tries - 1 and response.status_code == requests.codes.unauthorized):
+                #response = request_access_token()
+                #if response.status_code == requests.codes.ok:
+                #    save_token(response)
+                #    load_token()
+                #    response = request_refresh_token()
+                #    if response.status_code == requests.codes.ok:
+                #        save_token(response)
+                #        load_token()
+                get_token()
+                continue
+            else:
+                print(e)
+                sys.exit()
+        break  # If it doesn't throw an exception then move on, there is no need to retry
 
-        series_titles = tuple([series['seriesName'] for series in series_list])
-        list_choices(series_titles)
-        series_data = select_choice(series_list)
 
-        if series_data is None:
-            print("No series selected, run the script again")
-            sys.exit()
+# Rewrite request token code
+#    try:
+#        response = find_series(args.search)
+#        response.raise_for_status()
+#    except HTTPError as e:
+#        if response.status_code != requests.codes.unauthorized:
+#            print("Received an unexpected error when attempting to query theTVDB: {}".format(e))
+#            sys.exit()
+#        else:
 
-        print('You have selected "{}"'.format(series_data['seriesName']))
-        series_id = series_data['id']
-        episode_list = get_all_episodes(series_id)
-        episode_titles = tuple([episode['episodeName']
-                                for episode in episode_list])
 
-        episode_names_ids = dict()
-        for episode_data in episode_list:
-            episode_names_ids[remove_chars(
-                episode_data['episodeName'], string.punctuation).lower()] = episode_data['id']
+    try:
+        series_list = response.json()['data']
+    except KeyError as e:
+        print("Did not receive a valid search result")
+        print(e)
+        sys.exit()
 
-        # Collect season and episode numbers too, so that we have the
-        # option to search by number instead of title
+    series_titles = tuple([series['seriesName'] for series in series_list])
+    list_choices(series_titles)
+    series_data = select_choice(series_list)
 
-        episode_nums_ids = dict()
-        for episode_data in episode_list:
-            episode_nums_ids[str(episode_data['airedSeason']) + 'x' +
-                             str(episode_data['airedEpisodeNumber'])] = episode_data['id']
+    if series_data is None:
+        print("No series selected, run the script again")
+        sys.exit()
+
+    print('You have selected "{}"'.format(series_data['seriesName']))
+    series_id = series_data['id']
+    episode_list = get_all_episodes(series_id)
+    episode_titles = tuple([episode['episodeName']
+                            for episode in episode_list])
+
+    episode_names_ids = dict()
+    for episode_data in episode_list:
+        episode_names_ids[remove_chars(
+            episode_data['episodeName'], string.punctuation).lower()] = episode_data['id']
+
+    # Collect season and episode numbers too, so that we have the
+    # option to search by number instead of title
+
+    episode_nums_ids = dict()
+    for episode_data in episode_list:
+        episode_nums_ids[str(episode_data['airedSeason']) + 'x' +
+                         str(episode_data['airedEpisodeNumber'])] = episode_data['id']
+
+    if args.episode_numbers:
+        print(
+            ">>> Episode numbers must be given in the format SEASONxEPISODE e.g. 3x6 for season 3 episode 6")
+
+    if not args.multiple_episodes:
+        num_searches = 1
+    else:
+        num_searches = args.multiple_episodes
+
+    for filepath in episode_files:
+        filepath = os.path.abspath(filepath)
+        filename = os.path.basename(filepath)
+        print('Episode File: {}'.format(filename))
 
         if args.episode_numbers:
-            print(
-                ">>> Episode numbers must be given in the format SEASONxEPISODE e.g. 3x6 for season 3 episode 6")
-
-        if not args.multiple_episodes:
-            num_searches = 1
-        else:
-            num_searches = args.multiple_episodes
-
-        for filepath in episode_files:
-            filepath = os.path.abspath(filepath)
-            filename = os.path.basename(filepath)
-            print('Episode File: {}'.format(filename))
-
-            if args.episode_numbers:
-                given_episode_numbers = list()
-                entry_count = 0
-                while True:
-                    episode_number = prompt_user('Enter episode number: ')
-                    if re.compile("^\d{1,2}x\d{1,2}$").match(episode_number):
-                        # Remove any leading zeroes
-                        season_and_episode = [num.lstrip(
-                            '0') for num in re.split('x', episode_number)]
-                        episode_number = 'x'.join(season_and_episode)
-                        try:
-                            episode_nums_ids[episode_number]
-                        except KeyError:
-                            print("Episode does not exist")
-                            continue
-                        given_episode_numbers.append(episode_number)
-                        entry_count += 1
-                    else:
-                        print("Invalid entry, try again")
-                        continue
-
-                    if entry_count >= num_searches:
-                        break
-
-                episode_ids = [episode_nums_ids[ep_num]
-                               for ep_num in given_episode_numbers]
-            else:
-                # TODO: Guess episode title
-                results = search_titles(episode_titles, num_searches)
-                chosen_episodes = [remove_chars(ep_name, string.punctuation).lower(
-                ) for ep_name in results]
-                episode_ids = [episode_names_ids[ep_name]
-                               for ep_name in chosen_episodes]
-
-            # END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
-
-            episode_data_list = list()
-            for ep_id in episode_ids:
-
-                tries = 3
-                for i in range(tries):
+            given_episode_numbers = list()
+            entry_count = 0
+            while True:
+                episode_number = prompt_user('Enter episode number: ')
+                if re.compile("^\d{1,2}x\d{1,2}$").match(episode_number):
+                    # Remove any leading zeroes
+                    season_and_episode = [num.lstrip(
+                        '0') for num in re.split('x', episode_number)]
+                    episode_number = 'x'.join(season_and_episode)
                     try:
-                        response = episode_info(ep_id)
-                        response.raise_for_status()
-                    except requests.exceptions.HTTPError as e:
-                        if (i < tries - 1):
-                            print("Retrying...")
-                            continue
-                        else:
-                            print(e)
-                            sys.exit()
+                        episode_nums_ids[episode_number]
+                    except KeyError:
+                        print("Episode does not exist")
+                        continue
+                    given_episode_numbers.append(episode_number)
+                    entry_count += 1
+                else:
+                    print("Invalid entry, try again")
+                    continue
+
+                if entry_count >= num_searches:
                     break
 
-                episode_data = response.json()['data']
-                episode_data_list.append(episode_data)
+            episode_ids = [episode_nums_ids[ep_num]
+                           for ep_num in given_episode_numbers]
+        else:
+            # TODO: Guess episode title
+            results = search_titles(episode_titles, num_searches)
+            chosen_episodes = [remove_chars(ep_name, string.punctuation).lower(
+            ) for ep_name in results]
+            episode_ids = [episode_names_ids[ep_name]
+                           for ep_name in chosen_episodes]
 
-            series_name = series_data['seriesName']
-            # Just grab the last one in memory, for now
-            season_number = str(episode_data['airedSeason'])
-            episode_names = [data['episodeName'] for data in episode_data_list]
-            episode_numbers = [str(data['airedEpisodeNumber'])
-                               for data in episode_data_list]
+        # END SEARCH SECTION / BEGIN RETRIEVING EPISODE DATA
 
-            new_filename = build_filename(
-                series_name, season_number, episode_names, episode_numbers)
-            file_extension = os.path.splitext(filename)[1]
-            print('>>> Your new filename is "{}"'.format(
-                new_filename + file_extension))
+        episode_data_list = list()
+        for ep_id in episode_ids:
 
-            if args.symlinks and os.path.isdir(args.symlinks):
-                linkpath = os.path.abspath(args.symlinks)
-                os.symlink(filepath, os.path.join(
-                    linkpath, new_filename + file_extension))
-            elif args.rename:
-                filedir = os.path.dirname(filepath)
-                os.rename(filepath, os.path.join(
-                    filedir, new_filename + file_extension))
+            tries = 3
+            for i in range(tries):
+                try:
+                    response = episode_info(ep_id)
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    if (i < tries - 1):
+                        print("Retrying...")
+                        continue
+                    else:
+                        print(e)
+                        sys.exit()
+                break
+
+            episode_data = response.json()['data']
+            episode_data_list.append(episode_data)
+
+        series_name = series_data['seriesName']
+        # Just grab the last one in memory, for now
+        season_number = str(episode_data['airedSeason'])
+        episode_names = [data['episodeName'] for data in episode_data_list]
+        episode_numbers = [str(data['airedEpisodeNumber'])
+                           for data in episode_data_list]
+
+        new_filename = build_filename(
+            series_name, season_number, episode_names, episode_numbers)
+        file_extension = os.path.splitext(filename)[1]
+        print('>>> Your new filename is "{}"'.format(
+            new_filename + file_extension))
+
+        if args.symlinks and os.path.isdir(args.symlinks):
+            linkpath = os.path.abspath(args.symlinks)
+            os.symlink(filepath, os.path.join(
+                linkpath, new_filename + file_extension))
+        elif args.rename:
+            filedir = os.path.dirname(filepath)
+            os.rename(filepath, os.path.join(
+                filedir, new_filename + file_extension))
 
 
 if __name__ == "__main__":
