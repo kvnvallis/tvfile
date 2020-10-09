@@ -319,34 +319,14 @@ def main():
         try:
             response = find_series(args.search)
             response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
+        except HTTPError as e:
             if (i < tries - 1 and response.status_code == requests.codes.unauthorized):
-                #response = request_access_token()
-                #if response.status_code == requests.codes.ok:
-                #    save_token(response)
-                #    load_token()
-                #    response = request_refresh_token()
-                #    if response.status_code == requests.codes.ok:
-                #        save_token(response)
-                #        load_token()
                 get_token()
                 continue
             else:
-                print(e)
+                print("Received an unexpected error when attempting to query theTVDB: {}".format(e))
                 sys.exit()
         break  # If it doesn't throw an exception then move on, there is no need to retry
-
-
-# Rewrite request token code
-#    try:
-#        response = find_series(args.search)
-#        response.raise_for_status()
-#    except HTTPError as e:
-#        if response.status_code != requests.codes.unauthorized:
-#            print("Received an unexpected error when attempting to query theTVDB: {}".format(e))
-#            sys.exit()
-#        else:
-
 
     try:
         series_list = response.json()['data']
