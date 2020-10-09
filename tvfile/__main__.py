@@ -150,7 +150,7 @@ def get_all_episodes(series_id):
     page = 1
     all_episodes = list()
     while True:
-        episodes = get_episodes(series_id, page).json()
+        episodes = try_query(get_episodes, series_id, page).json()
         if episodes['links']['next'] is not None:
             all_episodes = all_episodes + episodes['data']
             page = episodes['links']['next']
