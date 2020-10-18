@@ -13,7 +13,6 @@
 import sys
 import os
 import requests
-import json
 import argparse
 import json
 import string
