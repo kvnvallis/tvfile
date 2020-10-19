@@ -20,7 +20,7 @@ import textwrap
 import re
 import time
 import jwt
-#import configparser
+import configparser
 
 from glob import glob
 from requests.exceptions import HTTPError
@@ -48,8 +48,34 @@ def create_parser():
                         help='The tv episode files to rename, intended to be used with shell expansion, e.g. *.mkv')
     parser.add_argument('-n', '--episode-numbers', action='store_true',
                         help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
-    parser.add_argument('-j', '--junk', help='Help auto-detection of episode titles by providing parts of the filename which can be ignored')
+    parser.add_argument('--style', help='Override style option from config without modifying the file')
+    parser.add_argument('-j', '--junk', help='(NOT IMPLEMENTED) Help auto-detection of episode titles by providing parts of the filename which can be ignored')
+    parser
     return parser
+
+
+def create_config():
+    config = configparser.ConfigParser()
+    filename = 'styles.ini'
+    filepath = os.path.join(CONFIG_DIR, filename)
+    template = """
+[config]
+style = standard
+[standard] 
+word_delim = ' '
+part_delim = ' - '
+caps = yes
+allow_chars = ,'?!&$():
+    """
+    try:
+        with open(filepath) as inifile:
+            config.read_file(inifile)
+    except IOError:
+        config.read_string(template)
+        print("Config file missing, creating new file at", filepath)
+        with open(filepath, 'w') as inifile:
+            config.write(inifile)
+    return config
 
 
 def try_query(query_func, *query_args, limit=3):
@@ -251,8 +277,11 @@ def expand_paths(files):
     return episode_files
 
 
-def build_filename(series_name, season_number, episode_names, episode_numbers):
+def build_filename(series_name, season_number, episode_names, episode_numbers, style):
     """Accept names with words separated by spaces, and numbers as strings not integers. Return a filename without a file extension."""
+    word_delim = style['word_delim'].strip("'\"")
+    part_delim = style['part_delim'].strip("'\"")
+    
     if len(season_number) < 2:
         season_number = '0' + season_number
 
@@ -263,28 +292,49 @@ def build_filename(series_name, season_number, episode_names, episode_numbers):
 
     season_episode_abbrev = 'S' + season_number + \
         'E' + '-E'.join(episode_numbers)
-    series_name = series_name.replace(' ', '.')
+        
+    deny_chars = string.punctuation
+    illegal_chars = deny_chars.translate(str.maketrans('', '', style['allow_chars']))
+
+    # Strip punctuation, collapse spaces, replace spaces with delimeter
+    series_name = remove_chars(series_name, illegal_chars)
+    series_name = ' '.join(series_name.split())
+    series_name = series_name.replace(' ', word_delim)
 
     for index, ep_name in enumerate(episode_names):
-        new_name = ep_name.replace(' ', '.')
+        ep_name = remove_chars(ep_name, illegal_chars)
+        ep_name = ' '.join(ep_name.split())
+        new_name = ep_name.replace(' ', word_delim)
         episode_names[index] = new_name
 
     filename_parts = [series_name,
-                      season_episode_abbrev, '-'.join(episode_names)]
-
-    illegal_chars = '<>:"/\|?*'
-    new_filename = remove_chars(
-        '.'.join(filename_parts), illegal_chars)
-    return new_filename
+                      season_episode_abbrev, part_delim.join(episode_names)]
+    
+    new_filename = part_delim.join(filename_parts)
+    if style.getboolean('caps') is True:
+        return new_filename
+    else:
+        return new_filename.lower()
 
 
 def main():
     parser = create_parser()
     global args
     args = parser.parse_args()
-
+    
     if not os.path.isdir(CONFIG_DIR):
         os.makedirs(CONFIG_DIR)
+        
+    config = create_config()
+    try:
+        style_attrs = config[args.style]
+    except KeyError:
+        try:
+            style_name = config['config']['style']
+            style_attrs = config[style_name]
+        except KeyError:
+            print("Invalid style name '{}' set in config".format(style_name))
+            sys.exit()
 
     # Use glob to expand file paths for compatibility with windows shells
     if os.name == 'nt':
@@ -416,7 +466,7 @@ def main():
                            for data in episode_data_list]
 
         new_filename = build_filename(
-            series_name, season_number, episode_names, episode_numbers)
+            series_name, season_number, episode_names, episode_numbers, style_attrs)
         file_extension = os.path.splitext(filename)[1]
         print('>>> Your new filename is "{}"'.format(
             new_filename + file_extension))
