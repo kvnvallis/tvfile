@@ -311,10 +311,16 @@ def build_filename(series_name, season_number, episode_names, episode_numbers, s
                       season_episode_abbrev, part_delim.join(episode_names)]
     
     new_filename = part_delim.join(filename_parts)
-    if style.getboolean('caps') is True:
-        return new_filename
-    else:
-        return new_filename.lower()
+    
+    try:
+        if style.getboolean('caps') is True:
+            return new_filename
+        else:
+            return new_filename.lower()
+    except ValueError:
+        print("'caps' is not a true or false value in the config")
+        print("[ NOW ENTERING ALL CAPS MODE ]")
+        return new_filename.upper()
 
 
 def main():
@@ -326,15 +332,28 @@ def main():
         os.makedirs(CONFIG_DIR)
         
     config = create_config()
-    try:
-        style_attrs = config[args.style]
-    except KeyError:
+    
+    if args.style is not None:
+        style_name = args.style
+    else:
         try:
             style_name = config['config']['style']
-            style_attrs = config[style_name]
         except KeyError:
-            print("Invalid style name '{}' set in config".format(style_name))
+            print("No given style and no style set in config")
             sys.exit()
+    
+    try:
+        config_options = set(config.options(style_name))
+    except configparser.NoSectionError:
+        print("Selected style does not exist in the config")
+        sys.exit()
+    
+    required_options = {'caps', 'word_delim', 'allow_chars', 'part_delim'}
+    if config_options == required_options:
+        style_attrs = config[style_name]
+    else:
+        print("Missing required options in config")
+        sys.exit()
 
     # Use glob to expand file paths for compatibility with windows shells
     if os.name == 'nt':
