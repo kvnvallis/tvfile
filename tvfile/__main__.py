@@ -86,7 +86,7 @@ def quit(bookmark=None):
     print('\n')
     if bookmark is not None:
         print("Script exited on file number {bookmark}. To resume, run the same command with --starts-at={bookmark}".format(bookmark=bookmark))
-    sys.exit(0)   
+    sys.exit(0)
 
 
 def try_query(query_func, *query_args, limit=3):
@@ -426,6 +426,9 @@ def main():
     else:
         num_searches = args.multiple_episodes
 
+    if args.symlinks and os.path.isfile(args.symlinks):
+        print("WARNING: You may have accidentally passed an episode file to the --symlinks option")
+
     for idx, filepath in enumerate(episode_files):
         global BOOKMARK
         BOOKMARK = idx + 1
@@ -513,6 +516,8 @@ def main():
             filedir = os.path.dirname(filepath)
             os.rename(filepath, os.path.join(
                 filedir, new_filename + file_extension))
+        else:
+            print("WARNING: No files were renamed or symlinked")
 
 
 if __name__ == "__main__":
@@ -520,5 +525,3 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         quit(BOOKMARK)
-#        print('\n')
-#        sys.exit(0)
