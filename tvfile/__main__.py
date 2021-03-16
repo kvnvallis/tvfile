@@ -31,6 +31,9 @@ TOKEN = ''
 CONFIG_DIR = os.path.join(os.path.expanduser('~'), '.config', 'tvfile')
 TOKEN_PATH = os.path.join(CONFIG_DIR, 'token.txt')
 
+# Keeps track of what file you're on; Modified by main()
+BOOKMARK = None
+
 
 def create_parser():
     parser = argparse.ArgumentParser(
@@ -49,6 +52,7 @@ def create_parser():
     parser.add_argument('-n', '--episode-numbers', action='store_true',
                         help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
     parser.add_argument('--style', help='Override style option from config without modifying the file')
+    parser.add_argument('--start-at', type=int, help='Start at the nth file in the list. Useful if script exits early and you need to run the same command again, resuming from where it previously left off.')
     parser.add_argument('-j', '--junk', help='(NOT IMPLEMENTED) Help auto-detection of episode titles by providing parts of the filename which can be ignored')
     parser
     return parser
@@ -78,9 +82,15 @@ allow_chars = ,'?!&$():
     return config
 
 
+def quit(bookmark=None):
+    print('\n')
+    if bookmark is not None:
+        print("Script exited on file number {bookmark}. To resume, run the same command with --starts-at={bookmark}".format(bookmark=bookmark))
+    sys.exit(0)   
+
+
 def try_query(query_func, *query_args, limit=3):
     tries = 0
-    # for tries in range(limit):
     while tries < limit:
         try:
             response = query_func(*query_args)
@@ -416,7 +426,12 @@ def main():
     else:
         num_searches = args.multiple_episodes
 
-    for filepath in episode_files:
+    for idx, filepath in enumerate(episode_files):
+        global BOOKMARK
+        BOOKMARK = idx + 1
+        if args.start_at:
+            if (idx + 1) < args.start_at:
+                continue
         filepath = os.path.abspath(filepath)
         filename = os.path.basename(filepath)
         print('Episode File: {}'.format(filename))
@@ -461,7 +476,7 @@ def main():
                     chosen_episode_list.append(chosen_episode)
                     search_count += 1
                 else:
-                    print("Ignoring selection, try again")
+                    print("No search results found, or invalid choice. Try again")
 
             chosen_episodes = [remove_chars(ep_name, string.punctuation).lower(
             ) for ep_name in chosen_episode_list]
@@ -504,5 +519,6 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print('\n')
-        sys.exit(0)
+        quit(BOOKMARK)
+#        print('\n')
+#        sys.exit(0)
