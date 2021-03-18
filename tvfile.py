@@ -7,7 +7,6 @@
 # TODO:
 #
 # * Try to guess episode titles or numbers based on filename
-# * Create different styles for filenames and make it easy to add new ones
 
 
 import sys
@@ -51,10 +50,9 @@ def create_parser():
                         help='The tv episode files to rename, intended to be used with shell expansion, e.g. *.mkv')
     parser.add_argument('-n', '--episode-numbers', action='store_true',
                         help='Search for episodes by number instead of name. Useful when files are ordered correctly but the syntax is wrong.')
-    parser.add_argument('--style', help='Override style option from config without modifying the file')
+    parser.add_argument('--style', help='Override style=name option from config')
     parser.add_argument('--start-at', type=int, help='Start at the nth file in the list. Useful if script exits early and you need to run the same command again, resuming from where it previously left off.')
-    parser.add_argument('-j', '--junk', help='(NOT IMPLEMENTED) Help auto-detection of episode titles by providing parts of the filename which can be ignored')
-    parser
+    #parser.add_argument('-j', '--junk', help='(NOT IMPLEMENTED) Help auto-detection of episode titles by providing parts of the filename which can be ignored')
     return parser
 
 
@@ -154,10 +152,6 @@ def load_token():
     except FileNotFoundError:
         # Create the empty file
         open(TOKEN_PATH, 'w').close()
-
-
-# curl command to search for series
-# curl --header 'Content-Type: application/json' --header "Authorization: Bearer [TOKEN]" --request GET https://api.thetvdb.com/search/series?name=mythbusters
 
 
 def find_series(search):
