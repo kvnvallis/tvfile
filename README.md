@@ -5,6 +5,10 @@ tvfile assists you in renaming your tv shows so that the files conform to theTVD
 
 ## Downloads
 
+__tvfile v0.2-alpha:__
+
+* [Ubuntu 16.04+ (64-bit)](https://github.com/kvnvallis/tvfile/releases/download/v0.2-alpha/tvfile)
+
 __tvfile v0.1-alpha:__
 
 * [Windows XP/7/10 (32-bit)](https://github.com/kvnvallis/tvfile/releases/download/v0.1-alpha/tvfile.exe)
@@ -42,13 +46,17 @@ Copy tvfile to a location in your PATH.
                             Search for episodes by number instead of name. Useful
                             when files are ordered correctly but the syntax is
                             wrong.
+      --style STYLE         Override style=name option from config
+      --start-at START_AT   Start at the nth file in the list. Useful if script
+                            exits early and you need to run the same command
+                            again, resuming from where it previously left off.
 
 
 ## Examples
 
 Create symlinks in your media library for episodes in your downloads folder.
 
-    tvfile -s 'cowboy bebop' -l '/media/library/cowboy bebop/' '~/downloads/Cowboy Bebop Complete Series/*.mkv
+    tvfile -s 'cowboy bebop' -l '/media/library/cowboy bebop/' '~/downloads/Cowboy Bebop Complete Series/*.mkv'
 
 Rename files in-place without creating links.
 
@@ -65,5 +73,6 @@ Rename files by providing the episode number instead of searching for the episod
 ## Tips
 
 * Hit ctrl-c to stop the script at any time
+* Resume from previous file using `--start-at`
 * You can enter search strings for episode names instead of the full title
 * A token for TheTVDB.com API is stored in your user folder at `~/.config/tvfile/`
