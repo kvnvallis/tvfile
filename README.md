@@ -7,7 +7,7 @@ tvfile assists you in renaming your tv shows so that the files conform to theTVD
 
 __tvfile v0.2-alpha:__
 
-* [Ubuntu 16.04+ (64-bit)](https://github.com/kvnvallis/tvfile/releases/download/v0.2-alpha/tvfile)
+* [Windows XP/7/10 (64-bit)](https://github.com/kvnvallis/tvfile/releases/download/v0.2-alpha/tvfile.exe)
 
 __tvfile v0.1-alpha:__
 
