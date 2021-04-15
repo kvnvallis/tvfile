@@ -98,8 +98,9 @@ def try_query(query_func, *query_args, limit=3):
             if response.status_code == requests.codes.unauthorized:
                 get_token()
             tries += 1
-    print("Tried query {} times with no good response: {}".format(tries, e))
-    sys.exit()
+    print("Tried query {} times with no good response".format(tries))
+    #sys.exit()
+    return None
 
 
 def get_token():
@@ -180,6 +181,8 @@ def get_all_episodes(series_id):
     all_episodes = list()
     while True:
         episodes = try_query(get_episodes, series_id, page).json()
+        if episodes is None:
+            return
         if episodes['links']['next'] is not None:
             all_episodes = all_episodes + episodes['data']
             page = episodes['links']['next']
@@ -376,6 +379,8 @@ def main():
     #    load_token()
 
     response = try_query(find_series, args.search)
+    if response is None:
+        sys.exit()
 
     try:
         series_list = response.json()['data']
@@ -395,6 +400,8 @@ def main():
     print('You have selected "{}"'.format(series_data['seriesName']))
     series_id = series_data['id']
     episode_list = get_all_episodes(series_id)
+    if episode_list is None:
+        sys.exit()
     episode_titles = tuple([episode['episodeName']
                             for episode in episode_list])
 
@@ -486,6 +493,8 @@ def main():
         for ep_id in episode_ids:
 
             response = try_query(episode_info, ep_id)
+            if response is None:
+                sys.exit()
             episode_data = response.json()['data']
             episode_data_list.append(episode_data)
 
