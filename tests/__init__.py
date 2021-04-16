@@ -2,7 +2,7 @@ import tvfile
 import requests
 import json
 
-from requests.exceptions import Timeout
+from requests.exceptions import RequestException, Timeout
 from requests import Response
 
 from unittest import TestCase
@@ -70,19 +70,23 @@ class TryQueryTests(TestCase):
         self.assertEqual(r.status_code, http_code)
 
     def test_try_query_bad(self):
-        """404 not found status is reported every try, and no response from try_query is returned"""
-        http_code = requests.codes.not_found
-        query_func = make_response
-        r = tvfile.try_query(query_func, http_code)
-        self.assertIsNone(r)
+        """Generic exception is raised and is left unhandled"""
+        response_mock = Mock(name="Mocked response from thetvdb api")
+        response_mock.raise_for_status.side_effect = RequestException
+        query_func = lambda mock_obj: mock_obj
+        with self.assertRaises(RequestException):
+            r = tvfile.try_query(query_func, response_mock)
 
     def test_try_query_unauthorized(self):
-        """Every query try gets status code 401 authorized, no response from try_query is returned"""
-        http_code = requests.codes.unauthorized
-        query_func = make_response
-        r = tvfile.try_query(query_func, http_code)
+        """Every query try gets HTTPError with status code 401 authorized, 
+        try_query attempts to get a token before giving up and raising the exception again."""
+        response_mock = Mock(name='Mocked response from thetvdb api')
+        response_mock.status_code = requests.codes.unauthorized
+        response_mock.raise_for_status.side_effect = requests.HTTPError
+        query_func = lambda mock_obj: mock_obj
+        with self.assertRaises(requests.HTTPError):
+            r = tvfile.try_query(query_func, response_mock)
         tvfile.get_token.assert_called()
-        self.assertIsNone(r)
 
     def test_try_query_fail_then_success(self):
         """Query succeeds on second attempt and try_query returns a matching response"""

@@ -80,27 +80,35 @@ allow_chars = ,'?!&$():
     return config
 
 
+def exit_on_query_fail(thing):
+    """Exit the script and print the thing it couldn't get for us"""
+    sys.exit("Quitting because script could not retrieve {} from the tvdb".format(thing))
+
+
 def quit(bookmark=None):
     print('\n')
     if bookmark is not None:
-        print("Script exited on file number {bookmark}. To resume, run the same command with --starts-at={bookmark}".format(bookmark=bookmark))
+        print("Script exited on file number {bookmark}. To resume, run the same command with --start-at={bookmark}".format(bookmark=bookmark))
     sys.exit(0)
 
 
 def try_query(query_func, *query_args, limit=3):
+    """Retry on HTTPError until hitting the tries limit, then raise the HTTPError.
+    Don't retry on other errors, just raise the exception."""
     tries = 0
-    while tries < limit:
+    while tries <= limit:
+        response = query_func(*query_args)
         try:
-            response = query_func(*query_args)
             response.raise_for_status()
-            return response
-        except HTTPError as e:
-            if response.status_code == requests.codes.unauthorized:
+        except HTTPError:
+            if tries == limit:
+                print("Tried query {} times with no good response".format(tries))
+                response.raise_for_status()
+            elif response.status_code == requests.codes.unauthorized:
                 get_token()
             tries += 1
-    print("Tried query {} times with no good response".format(tries))
-    #sys.exit()
-    return None
+        else:
+            return response
 
 
 def get_token():
@@ -180,9 +188,10 @@ def get_all_episodes(series_id):
     page = 1
     all_episodes = list()
     while True:
-        episodes = try_query(get_episodes, series_id, page).json()
-        if episodes is None:
-            return
+        try:
+            episodes = try_query(get_episodes, series_id, page).json()
+        except:
+            exit_on_query_fail('episodes')
         if episodes['links']['next'] is not None:
             all_episodes = all_episodes + episodes['data']
             page = episodes['links']['next']
@@ -378,9 +387,10 @@ def main():
     #    save_token(response)
     #    load_token()
 
-    response = try_query(find_series, args.search)
-    if response is None:
-        sys.exit()
+    try:
+        response = try_query(find_series, args.search)
+    except:
+        exit_on_query_fail('the tv series')
 
     try:
         series_list = response.json()['data']
@@ -400,8 +410,6 @@ def main():
     print('You have selected "{}"'.format(series_data['seriesName']))
     series_id = series_data['id']
     episode_list = get_all_episodes(series_id)
-    if episode_list is None:
-        sys.exit()
     episode_titles = tuple([episode['episodeName']
                             for episode in episode_list])
 
@@ -491,10 +499,10 @@ def main():
 
         episode_data_list = list()
         for ep_id in episode_ids:
-
-            response = try_query(episode_info, ep_id)
-            if response is None:
-                sys.exit()
+            try:
+                response = try_query(episode_info, ep_id)
+            except:
+                exit_on_query_fail('episode info')
             episode_data = response.json()['data']
             episode_data_list.append(episode_data)
 
