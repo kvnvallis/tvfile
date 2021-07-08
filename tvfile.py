@@ -67,7 +67,7 @@ style = standard
 word_delim = ' '
 part_delim = ' - '
 caps = yes
-allow_chars = ,'?!&$():
+allow_chars = ,'!&$():
     """
     try:
         with open(filepath) as inifile:
@@ -85,11 +85,11 @@ def exit_on_query_fail(thing):
     sys.exit("Quitting because script could not retrieve {} from the tvdb".format(thing))
 
 
-def quit(bookmark=None):
+def quit(status=0, bookmark=None):
     print('\n')
     if bookmark is not None:
         print("Script exited on file number {bookmark}. To resume, run the same command with --start-at={bookmark}".format(bookmark=bookmark))
-    sys.exit(0)
+    sys.exit(status)
 
 
 def try_query(query_func, *query_args, limit=3):
@@ -521,12 +521,23 @@ def main():
 
         if args.symlinks and os.path.isdir(args.symlinks):
             linkpath = os.path.abspath(args.symlinks)
-            os.symlink(filepath, os.path.join(
-                linkpath, new_filename + file_extension))
+            try:
+                os.symlink(filepath, os.path.join(
+                    linkpath, new_filename + file_extension))
+            except NotImplementedError:
+                print("ERROR: The -l option was used, but your OS can't create symbolic links. Try renaming files with -r instead.")
+                quit(1, BOOKMARK)
         elif args.rename:
             filedir = os.path.dirname(filepath)
-            os.rename(filepath, os.path.join(
-                filedir, new_filename + file_extension))
+            try:
+                os.rename(filepath, os.path.join(
+                    filedir, new_filename + file_extension))
+            except OSError as e:
+                if e.winerror and e.winerror == 123:
+                    print("ERROR: Filename contains characters usupported by your OS. Identify problem character and remove from 'allowed_chars' in 'styles.ini'.")
+                else:
+                    print(e)
+                quit(1, BOOKMARK)
         else:
             print("WARNING: No files were renamed or symlinked")
 
