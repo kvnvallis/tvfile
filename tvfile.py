@@ -18,7 +18,7 @@ import string
 import textwrap
 import re
 import time
-import jwt
+#import jwt
 import configparser
 
 from glob import glob
