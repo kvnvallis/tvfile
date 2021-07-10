@@ -63,7 +63,7 @@ style = standard
 word_delim = ' '
 part_delim = ' - '
 caps = yes
-allow_chars = ,'!&$():
+allow_chars = ,'!&$()
     """
     try:
         with open(filepath) as inifile:
@@ -544,7 +544,7 @@ def main():
                     filedir, new_filename + file_extension))
             except OSError as e:
                 if e.winerror and e.winerror == 123:
-                    print("ERROR: Filename contains characters usupported by your OS. Identify problem character and remove from 'allowed_chars' in 'styles.ini'.")
+                    print("ERROR: Filename contains characters usupported by your OS. Identify problem character and remove from 'allow_chars' in 'styles.ini'.")
                 else:
                     print(e)
                 quit(1, BOOKMARK)
