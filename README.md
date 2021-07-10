@@ -5,6 +5,10 @@ tvfile assists you in renaming your tv shows so that the files conform to theTVD
 
 ## Downloads
 
+__tvfile v0.3-alpha:__
+
+* [Windows XP/7/10 (32-bit)](https://github.com/kvnvallis/tvfile/releases/tag/v0.3-alpha/tvfile.exe)
+
 __tvfile v0.2-alpha:__
 
 * [Windows XP/7/10 (64-bit)](https://github.com/kvnvallis/tvfile/releases/download/v0.2-alpha/tvfile.exe)
