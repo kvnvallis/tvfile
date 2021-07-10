@@ -4,10 +4,6 @@
 # certified by TheTVDB.com or its affiliates.
 #
 
-# TODO:
-#
-# * Try to guess episode titles or numbers based on filename
-
 
 import sys
 import os
@@ -207,11 +203,25 @@ def episode_info(episode_id):
     return response
 
 
+def filter_ascii(content):
+    """Translate common unicode punctation into reasonable ascii representations, then remove all other non-ascii characters."""
+    # This is used for filtering content from the tvdb before printing it to
+    # the screen, and for filtering strings before they become filenames. 
+    unicode = '\u2018' + '\u2019' + '\u2013' + '\u2014' + '\u201c' + '\u201d'
+    to_ascii = "'" + "'" + '-' + '-' + '"' + '"'
+    unicode_to_ascii = str.maketrans(unicode, to_ascii)
+    trans_content = content.translate(unicode_to_ascii)
+    allowed_chars = set(string.ascii_letters + string.digits + string.punctuation + ' ')
+    func = lambda x : x in allowed_chars
+    ascii_content = ''.join(filter(func, trans_content))
+    return(ascii_content)
+
+
 def list_choices(results_list):
     """Print out numerical selectors next to a list of choices. Argument must be a list of strings."""
     for position, item in enumerate(results_list):
-        print('[{selector}] {series_name}'.format(
-            selector=position + 1, series_name=item))
+        print(filter_ascii('[{selector}] {series_name}'.format(
+            selector=position + 1, series_name=item)))
 
 
 def select_choice(items):
@@ -309,8 +319,8 @@ def build_filename(series_name, season_number, episode_names, episode_numbers, s
     season_episode_abbrev = 'S' + season_number + \
         'E' + '-E'.join(episode_numbers)
         
-    deny_chars = string.punctuation
-    illegal_chars = deny_chars.translate(str.maketrans('', '', style['allow_chars']))
+    punct = string.punctuation
+    illegal_chars = punct.translate(str.maketrans('', '', style['allow_chars']))
 
     # Strip punctuation, collapse spaces, replace spaces with delimeter
     series_name = remove_chars(series_name, illegal_chars)
@@ -407,7 +417,7 @@ def main():
         print("No series selected, run the script again")
         sys.exit()
 
-    print('You have selected "{}"'.format(series_data['seriesName']))
+    print(filter_ascii('You have selected "{}"'.format(series_data['seriesName'])))
     series_id = series_data['id']
     episode_list = get_all_episodes(series_id)
     episode_titles = tuple([episode['episodeName']
@@ -506,10 +516,10 @@ def main():
             episode_data = response.json()['data']
             episode_data_list.append(episode_data)
 
-        series_name = series_data['seriesName']
+        series_name = filter_ascii(series_data['seriesName'])
         # Just grab the last one in memory, for now
         season_number = str(episode_data['airedSeason'])
-        episode_names = [data['episodeName'] for data in episode_data_list]
+        episode_names = [filter_ascii(data['episodeName']) for data in episode_data_list]
         episode_numbers = [str(data['airedEpisodeNumber'])
                            for data in episode_data_list]
 
